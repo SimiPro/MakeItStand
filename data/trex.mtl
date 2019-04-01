@@ -1,0 +1,70 @@
+# Blender MTL File: 'None'
+# Material Count: 6
+
+newmtl SkinColor
+Ns 200.000000
+Ka 0.008547 0.008547 0.008547
+Kd 0.800000 0.800000 0.800000
+Ks 0.250000 0.250000 0.250000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 3
+map_Bump -bm 0.007001 /home/simi/Downloads/TrexModelByJoel3d_FBX/TrexBump012714.jpg
+map_Kd /home/simi/Downloads/TrexModelByJoel3d_FBX/TrexColor01152015.jpg
+map_Ks /home/simi/Downloads/TrexModelByJoel3d_FBX/TrexSpec.png
+
+newmtl blackMatteColor
+Ns 94.117647
+Ka 1.000000 1.000000 1.000000
+Kd 0.000000 0.000000 0.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl clawColor
+Ns 200.000000
+Ka 0.500000 0.500000 0.500000
+Kd 0.800000 0.800000 0.800000
+Ks 0.250000 0.250000 0.250000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 3
+map_Bump -bm 0.056007 /home/simi/Downloads/TrexModelByJoel3d_FBX/TrexTooth.png
+map_Kd /home/simi/Downloads/TrexModelByJoel3d_FBX/TrexTooth.png
+
+newmtl eyeColor
+Ns 94.117647
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd /home/simi/Downloads/TrexModelByJoel3d_FBX/TrexEyeColor.jpg
+
+newmtl eyeTransparentColor
+Ns 998.039216
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 9
+
+newmtl teethTexture
+Ns 437.254902
+Ka 0.500000 0.500000 0.500000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 3
+map_Bump -bm 0.049006 /home/simi/Downloads/TrexModelByJoel3d_FBX/TrexTooth.png
+map_Kd /home/simi/Downloads/TrexModelByJoel3d_FBX/TrexTooth.png
