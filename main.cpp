@@ -33,6 +33,8 @@ vector<Eigen::Vector3d> handles;
 bool set_gravity = false;
 bool set_handles = false;
 
+bool cleared = false;
+
 // bounding box needed for some displaying stuff
 Eigen::MatrixXd V_box;
 
@@ -48,15 +50,23 @@ void closest_point(const Eigen::RowVector3d p, Eigen::RowVector3d &np) {
 }
 
 bool pre_draw(Viewer& viewer) {
-    viewer.data().clear();
-    // set mesh
-    viewer.data().set_mesh(V, F);
-    viewer.data().set_face_based(true);
+    if (cleared) {
+        // set mesh
+        viewer.data().set_mesh(V, F);
+        viewer.data().set_face_based(true);
 
-    // 
-    viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
+        // 
+        viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
+
+        cleared = false;
+    }
 
     return false;
+}
+
+void clear(Viewer &viewer) {
+    viewer.data().clear();
+    cleared = true;
 }
 
 
@@ -94,13 +104,10 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
             }
   
 
-
             // paint hit red
             C.row(fid) << 1, 0, 0;
             viewer.data().set_colors(C);
         }
-
-        viewer.data().clear();
         return true;
     }
 
@@ -143,7 +150,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         igl::centroid(V, F, com, vol); 
     //std::cout << "Done" << std::endl;
 
-        //viewer.data().add_points(cen, Eigen::RowVector3d(1,0,0));
+        clear(viewer);
     }
 }
 
