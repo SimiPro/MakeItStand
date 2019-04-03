@@ -6,7 +6,8 @@
 
 #include <igl/readOBJ.h>
 #include <igl/unproject_onto_mesh.h>
-
+#include <igl/ray_mesh_intersect.h>
+#include <igl/per_face_normals.h>
 #include <igl/centroid.h>
 
 bool DEBUG = true;
@@ -18,7 +19,9 @@ typedef igl::opengl::glfw::Viewer Viewer;
 Eigen::MatrixXd V, C;
 Eigen::MatrixXd N;
 Eigen::MatrixXi F;
+Eigen::MatrixXd FN;
 
+Eigen::RowVector3d com;
 
 
 Eigen::Vector3d gravity;
@@ -44,6 +47,21 @@ void closest_point(const Eigen::RowVector3d p, Eigen::RowVector3d &np) {
     np = V.row(index);
 }
 
+bool pre_draw(Viewer& viewer) {
+    viewer.data().clear();
+    // set mesh
+    viewer.data().set_mesh(V, F);
+    viewer.data().set_face_based(true);
+
+    // 
+    viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
+
+    return false;
+}
+
+
+
+
 bool mouse_down(Viewer& viewer, int button, int modifier) {
     mouse_down_x = viewer.current_mouse_x;
     mouse_down_y = viewer.core.viewport(3) - viewer.current_mouse_y;
@@ -61,19 +79,28 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
             viewer.core.proj, viewer.core.viewport, V, F, fid, baryC)) {
 
             // max bary coords, get nearearst vertex
-            //long c; baryC.maxCoeff(&c);
-            //Eigen::RowVector3d new_c = V.row(F(fid,c));
+            long c; baryC.maxCoeff(&c);
+            Eigen::RowVector3d nn_c = V.row(F(fid,c));
 
 
-            // add some offset in direction of non normal so that we get nearest point on other side
-            //Eigen::RowVector3d fNormal = N.row(fid);
+            // go negative direction 
+            Eigen::RowVector3d vNormal = -FN.row(fid).normalized();
             
+            std::vector<igl::Hit> hits;
+            if (igl::ray_mesh_intersect( nn_c,vNormal, V, F, hits)) {
+                Eigen::RowVector3d mid_point = (nn_c + vNormal*hits[0].t)/2;
+                viewer.data().add_points(mid_point, Eigen::RowVector3d(1,0,0));
+
+            }
+  
 
 
             // paint hit red
             C.row(fid) << 1, 0, 0;
             viewer.data().set_colors(C);
         }
+
+        viewer.data().clear();
         return true;
     }
 
@@ -110,14 +137,13 @@ bool mouse_up(Viewer& viewer, int button, int modifier) {
 
 bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
     if (key == '1') {
-        Eigen::RowVector3d cen;
         double vol;
 
     //std::cout << "Start: compute center of mass" << std::endl;
-        igl::centroid(V, F, cen, vol); 
+        igl::centroid(V, F, com, vol); 
     //std::cout << "Done" << std::endl;
 
-        viewer.data().add_points(cen, Eigen::RowVector3d(1,0,0));
+        //viewer.data().add_points(cen, Eigen::RowVector3d(1,0,0));
     }
 }
 
@@ -154,6 +180,9 @@ int main(int argc, char *argv[]) {
         // Read points and normals
         igl::readOFF(argv[1],V,F,N);
     }
+
+    igl::per_face_normals(V,F, FN);
+
     C = Eigen::MatrixXd::Constant(F.rows(),3,1);
 
     V_box.resize(8,3); V_box.setZero();     
@@ -161,6 +190,10 @@ int main(int argc, char *argv[]) {
 
     // init viewer
     Viewer viewer;
+
+    // zero com
+    com.resize(3); com.setZero();
+
 
     // set gravity to 0 for start
     gravity.resize(3); gravity.setZero();
@@ -192,7 +225,8 @@ int main(int argc, char *argv[]) {
     
     viewer.callback_mouse_down = &mouse_down;
     viewer.callback_mouse_up = &mouse_up;
-    viewer.callback_key_down = callback_key_down;
+    viewer.callback_key_down = &callback_key_down;
+    viewer.callback_pre_draw = &pre_draw;
 
     // Plot the mesh
 
