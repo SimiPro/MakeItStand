@@ -61,12 +61,12 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
             viewer.core.proj, viewer.core.viewport, V, F, fid, baryC)) {
 
             // max bary coords, get nearearst vertex
-            long c; baryC.maxCoeff(&c);
-            Eigen::RowVector3d new_c = V.row(F(fid,c));
+            //long c; baryC.maxCoeff(&c);
+            //Eigen::RowVector3d new_c = V.row(F(fid,c));
 
 
             // add some offset in direction of non normal so that we get nearest point on other side
-            Eigen::RowVector3d fNormal = N.row(fid);
+            //Eigen::RowVector3d fNormal = N.row(fid);
             
 
 
