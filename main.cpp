@@ -7,6 +7,8 @@
 #include <igl/readOBJ.h>
 #include <igl/unproject_onto_mesh.h>
 
+#include <igl/centroid.h>
+
 
 using namespace std;
 
@@ -43,6 +45,23 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
     }
     return false;
 }   
+
+bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
+    if (key == '1') {
+        viewer.data().clear();
+        viewer.data().set_mesh(V, F);
+
+        Eigen::RowVector3d cen;
+        double vol;
+
+	//std::cout << "Start: compute center of mass" << std::endl;
+        igl::centroid(V, F, cen, vol); 
+	//std::cout << "Done" << std::endl;
+
+        viewer.data().add_points(cen, Eigen::RowVector3d(1,0,0));
+    }
+}
+
 
 
 int main(int argc, char *argv[]) {
@@ -83,6 +102,7 @@ int main(int argc, char *argv[]) {
 
     
     viewer.callback_mouse_down = &mouse_down;
+    viewer.callback_key_down = callback_key_down;
 
     // Plot the mesh
 
