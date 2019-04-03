@@ -3,6 +3,7 @@
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 #include <imgui/imgui.h>
 #include <vector>
+#include <deque>
 
 #include <igl/readOBJ.h>
 #include <igl/unproject_onto_mesh.h>
@@ -16,7 +17,7 @@ using namespace std;
 
 typedef igl::opengl::glfw::Viewer Viewer;
 
-Eigen::MatrixXd V, C;
+Eigen::MatrixXd V;
 Eigen::MatrixXd N;
 Eigen::MatrixXi F;
 Eigen::MatrixXd FN;
@@ -28,10 +29,13 @@ Eigen::Vector3d gravity;
 Eigen::Vector3d gravity_from; 
 Eigen::Vector3d gravity_to;
 
+int num_handles = 5;
 vector<Eigen::Vector3d> handles;
+vector<bool> used_handles(num_handles, false);
+deque<bool> set_handles(num_handles, false);
+vector<Eigen::Vector3d> p_handles;
 
 bool set_gravity = false;
-bool set_handles = false;
 
 bool cleared = false;
 
@@ -59,6 +63,11 @@ bool pre_draw(Viewer& viewer) {
         viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
 
         cleared = false;
+
+        for (int i = 0; i < used_handles.size(); i++) {
+            if (used_handles[i])
+                viewer.data().add_points(p_handles[i], Eigen::RowVector3d(1, 0, 0));
+        }
     }
 
     return false;
@@ -79,7 +88,9 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
         cout << "mouse down x: " << mouse_down_x << endl;
         cout << "mouse down y: " << mouse_down_y << endl;
     }
-    if (set_handles) {
+    for (int i =0; i < num_handles; i++) {
+        if (!set_handles[i]) continue;
+        set_handles[i] = false;
         int fid;
         Eigen::Vector3f baryC;
         // Cast a ray in the view direction starting from the mouse position
@@ -91,22 +102,8 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
             // max bary coords, get nearearst vertex
             long c; baryC.maxCoeff(&c);
             Eigen::RowVector3d nn_c = V.row(F(fid,c));
-
-
-            // go negative direction 
-            Eigen::RowVector3d vNormal = -FN.row(fid).normalized();
-            
-            std::vector<igl::Hit> hits;
-            if (igl::ray_mesh_intersect( nn_c,vNormal, V, F, hits)) {
-                Eigen::RowVector3d mid_point = (nn_c + vNormal*hits[0].t)/2;
-                viewer.data().add_points(mid_point, Eigen::RowVector3d(1,0,0));
-
-            }
-  
-
-            // paint hit red
-            C.row(fid) << 1, 0, 0;
-            viewer.data().set_colors(C);
+            used_handles[i] = true;
+            p_handles[i] = nn_c;
         }
         return true;
     }
@@ -190,8 +187,6 @@ int main(int argc, char *argv[]) {
 
     igl::per_face_normals(V,F, FN);
 
-    C = Eigen::MatrixXd::Constant(F.rows(),3,1);
-
     V_box.resize(8,3); V_box.setZero();     
     setBoudingBox();
 
@@ -223,7 +218,14 @@ int main(int argc, char *argv[]) {
         ImGui::InputDouble("Gravity y", &gravity[1], 0., 0);
         ImGui::InputDouble("Gravity z", &gravity[2], 0., 0);
 
-        ImGui::Checkbox("Set Handles", &set_handles);
+        for (int i = 0; i < num_handles; i++) {
+            p_handles.push_back({0,0,0});      
+        }
+
+        for (int i = 0; i < used_handles.size(); i++) {
+            ImGui::Checkbox("Set Handle", &(set_handles[i]));
+            ImGui::InputDouble("Z-depth", &p_handles[i][2], 0, 0);
+        }
 
 
         ImGui::End();
