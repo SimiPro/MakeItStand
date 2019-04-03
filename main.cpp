@@ -48,9 +48,6 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
 
 bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
     if (key == '1') {
-        viewer.data().clear();
-        viewer.data().set_mesh(V, F);
-
         Eigen::RowVector3d cen;
         double vol;
 
