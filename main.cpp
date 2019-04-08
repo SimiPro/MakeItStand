@@ -24,6 +24,10 @@ Eigen::MatrixXd N;
 Eigen::MatrixXi F;
 Eigen::MatrixXd FN;
 
+Eigen::MatrixXd planeV;
+Eigen::MatrixXd planeFN;
+Eigen::MatrixXi planeF;
+
 Eigen::RowVector3d com;
 
 
@@ -41,6 +45,7 @@ bool set_gravity = false;
 
 bool cleared = false;
 
+bool has_plane = false;
 bool set_balance_spot = false;
 
 // bounding box needed for some displaying stuff
@@ -59,6 +64,13 @@ void closest_point(const Eigen::RowVector3d p, Eigen::RowVector3d &np) {
 
 bool pre_draw(Viewer& viewer) {
     if (cleared) {
+        if (has_plane) {
+            viewer.data().set_mesh(planeV, planeF);
+            viewer.data().set_normals(planeFN);
+            viewer.append_mesh();
+
+        }
+
         // set mesh
         viewer.data().set_mesh(V, F);
         viewer.data().set_face_based(true);
@@ -72,6 +84,8 @@ bool pre_draw(Viewer& viewer) {
             if (used_handles[i])
                 viewer.data().add_points(p_handles[i], Eigen::RowVector3d(1, 0, 0));
         }
+
+
     }
 
     return false;
@@ -80,6 +94,29 @@ bool pre_draw(Viewer& viewer) {
 void clear(Viewer &viewer) {
     viewer.data().clear();
     cleared = true;
+}
+
+void set_plane() {
+    // Find the bounding box
+    Eigen::Vector3d m = V.colwise().minCoeff();
+    Eigen::Vector3d M = V.colwise().maxCoeff();
+
+    planeV.resize(4, 3);
+    planeF.resize(2, 3);
+    planeFN.resize(2, 3);
+
+    planeV.row(0) = Eigen::RowVector3d(m[0], 0, m[2]);
+    planeV.row(1) = Eigen::RowVector3d(M[0], 0, m[2]);
+    planeV.row(2) = Eigen::RowVector3d(m[0], 0, M[2]);
+    planeV.row(3) = Eigen::RowVector3d(M[0], 0, M[2]);
+
+    planeF.row(0) = Eigen::RowVector3i(0, 1, 2);
+    planeF.row(1) = Eigen::RowVector3i(1, 3, 2);
+
+    planeFN.row(0) = Eigen::RowVector3d(0,1,0);
+    planeFN.row(1) = Eigen::RowVector3d(0,1,0);
+
+    has_plane = true;
 }
 
 bool mouse_down(Viewer& viewer, int button, int modifier) {
@@ -125,6 +162,7 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
             V.rowwise() -= nn_c;
             clear(viewer);
             set_balance_spot = false;
+            set_plane();
         }
     }
 
