@@ -11,6 +11,8 @@
 #include <igl/per_face_normals.h>
 #include <igl/centroid.h>
 
+#include "mass_props.h"
+
 bool DEBUG = true;
 
 using namespace std;
@@ -38,6 +40,8 @@ vector<Eigen::Vector3d> p_handles;
 bool set_gravity = false;
 
 bool cleared = false;
+
+bool set_balance_spot = false;
 
 // bounding box needed for some displaying stuff
 Eigen::MatrixXd V_box;
@@ -78,9 +82,6 @@ void clear(Viewer &viewer) {
     cleared = true;
 }
 
-
-
-
 bool mouse_down(Viewer& viewer, int button, int modifier) {
     mouse_down_x = viewer.current_mouse_x;
     mouse_down_y = viewer.core.viewport(3) - viewer.current_mouse_y;
@@ -106,6 +107,25 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
             p_handles[i] = nn_c;
         }
         return true;
+    }
+
+
+    if (set_balance_spot) {
+        Eigen::Vector3f baryC;
+        int fid;
+        // Cast a ray in the view direction starting from the mouse position
+        double x = viewer.current_mouse_x;
+        double y = viewer.core.viewport(3) - viewer.current_mouse_y;
+        if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core.view,
+            viewer.core.proj, viewer.core.viewport, V, F, fid, baryC)) {
+
+            // max bary coords, get nearearst vertex
+            long c; baryC.maxCoeff(&c);
+            Eigen::RowVector3d nn_c = V.row(F(fid,c));
+            V.rowwise() -= nn_c;
+            clear(viewer);
+            set_balance_spot = false;
+        }
     }
 
     if (set_gravity) return true;
@@ -139,12 +159,25 @@ bool mouse_up(Viewer& viewer, int button, int modifier) {
     return false;
 }
 
+
 bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
     if (key == '1') {
         double vol;
 
     //std::cout << "Start: compute center of mass" << std::endl;
         igl::centroid(V, F, com, vol); 
+
+        cout << "igl com: " << endl;
+        cout << com << endl;
+
+        Eigen::VectorXd s10;
+        props(V, F, FN, 0.1,  s10);
+
+
+        Vector3d com = getCoM(s10);
+        cout << "our com: " << endl;
+        cout << com << endl;
+
     //std::cout << "Done" << std::endl;
 
         clear(viewer);
@@ -207,16 +240,22 @@ int main(int argc, char *argv[]) {
     menu.callback_draw_custom_window = [&]() {
         // Define next window position + size
         ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiSetCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(200, 160), ImGuiSetCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiSetCond_FirstUseEver);
         ImGui::Begin(
             "Window Handling Stuff", nullptr,
             ImGuiWindowFlags_NoSavedSettings
         );   
 
+        ImGui::Checkbox("Set Balance Spot", &set_balance_spot);
+
+
         ImGui::Checkbox("Set Gravity", &set_gravity);
         ImGui::InputDouble("Gravity x", &gravity[0], 0., 0);
         ImGui::InputDouble("Gravity y", &gravity[1], 0., 0);
         ImGui::InputDouble("Gravity z", &gravity[2], 0., 0);
+
+
+
 
         for (int i = 0; i < num_handles; i++) {
             p_handles.push_back({0,0,0});      
