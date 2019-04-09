@@ -35,7 +35,7 @@ Eigen::MatrixXd planeFN;
 Eigen::MatrixXi planeF;
 
 Eigen::RowVector3d com;
-
+bool com_is_set = false;
 
 Eigen::Vector3d gravity;
 Eigen::Vector3d gravity_from; 
@@ -107,6 +107,23 @@ void clear(Viewer &viewer) {
     viewer.selected_data_index = 1;
     viewer.data().clear();
     cleared = true;
+}
+
+void update_viewer(Viewer& viewer){
+    viewer.data().clear();
+    viewer.data().set_mesh(V, F);
+    viewer.data().set_face_based(true);
+    if(com_is_set) {
+        viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
+    }
+    //if(gravity_is_set) {
+    //    Eigen::RowVector3d temp = com + 100 * gravity;
+    //    viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
+    //    viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
+    //}
+    //if(balance_point_is_set) {
+    //    viewer.data().add_points(balance_point, Eigen::RowVector3d(0,1,0));
+    //}
 }
 
 void set_plane() {
@@ -278,6 +295,12 @@ void setBoudingBox() {
     }
 }
 
+void update_com() {
+    double vol;
+    igl::centroid(V, F, com, vol);
+    com_is_set = true;
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         cout << "Usage ./bin <mesh.off>" << endl;
@@ -318,7 +341,11 @@ int main(int argc, char *argv[]) {
             ImGuiWindowFlags_NoSavedSettings
         );   
 
-        
+	//center of mass
+	if (ImGui::Button("Update center of mass", ImVec2(-1,0))){
+            update_com();
+	    update_viewer(viewer);
+        }
 
         ImGui::Checkbox("Set Balance Spot", &set_balance_spot);
         ImGui::DragFloat("Move spot up/down", &y_move_balance_spot, 0.1);
