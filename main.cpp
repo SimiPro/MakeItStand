@@ -10,6 +10,7 @@
 #include <igl/ray_mesh_intersect.h>
 #include <igl/per_face_normals.h>
 #include <igl/centroid.h>
+#include <igl/copyleft/cgal/intersect_with_half_space.h>
 
 #include "mass_props.h"
 
@@ -18,6 +19,11 @@ bool DEBUG = true;
 using namespace std;
 
 typedef igl::opengl::glfw::Viewer Viewer;
+
+
+Eigen::MatrixXd V_base;
+Eigen::MatrixXd FN_base;
+Eigen::MatrixXi F_base;
 
 Eigen::MatrixXd V;
 Eigen::MatrixXd N;
@@ -98,8 +104,8 @@ void clear(Viewer &viewer) {
 
 void set_plane() {
     // Find the bounding box
-    Eigen::Vector3d m = V.colwise().minCoeff();
-    Eigen::Vector3d M = V.colwise().maxCoeff();
+    Eigen::Vector3d m = V_base.colwise().minCoeff();
+    Eigen::Vector3d M = V_base.colwise().maxCoeff();
 
     planeV.resize(4, 3);
     planeF.resize(2, 3);
@@ -117,6 +123,9 @@ void set_plane() {
     planeFN.row(1) = Eigen::RowVector3d(0,1,0);
 
     has_plane = true;
+
+    
+
 }
 
 bool mouse_down(Viewer& viewer, int button, int modifier) {
@@ -160,6 +169,7 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
             long c; baryC.maxCoeff(&c);
             Eigen::RowVector3d nn_c = V.row(F(fid,c));
             V.rowwise() -= nn_c;
+            V_base.rowwise() -= nn_c;
             clear(viewer);
             set_balance_spot = false;
             set_plane();
@@ -219,6 +229,20 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
     //std::cout << "Done" << std::endl;
 
         clear(viewer);
+    } else if (key == '2') {
+        Vector3d p(0,0,0);
+        Vector3d n(0,-1,0);
+        MatrixXd VC;
+        MatrixXi FC;
+        MatrixXi J; 
+        igl::copyleft::cgal::intersect_with_half_space(V_base, F_base, p,  n, VC, FC, J);
+
+        viewer.data().clear();
+        viewer.data().set_mesh(VC, FC);
+        viewer.data().compute_normals();
+        has_plane = false;
+
+
     }
 }
 
@@ -257,6 +281,9 @@ int main(int argc, char *argv[]) {
     }
 
     igl::per_face_normals(V,F, FN);
+    V_base = V;
+    FN_base = FN;
+    F_base = F;
 
     V_box.resize(8,3); V_box.setZero();     
     setBoudingBox();
