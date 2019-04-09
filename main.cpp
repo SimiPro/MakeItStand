@@ -49,10 +49,13 @@ vector<Eigen::Vector3d> p_handles;
 
 bool set_gravity = false;
 
-bool cleared = false;
+bool cleared = true;
 
 bool has_plane = false;
 bool set_balance_spot = false;
+
+float y_move_balance_spot = 0.;
+float rotate_balancing_spot = 0.;
 
 // bounding box needed for some displaying stuff
 Eigen::MatrixXd V_box;
@@ -70,15 +73,16 @@ void closest_point(const Eigen::RowVector3d p, Eigen::RowVector3d &np) {
 
 bool pre_draw(Viewer& viewer) {
     if (cleared) {
-        if (has_plane) {
+        if (has_plane) {    
+            viewer.selected_data_index = 0;
             viewer.data().set_mesh(planeV, planeF);
             viewer.data().set_normals(planeFN);
-            viewer.append_mesh();
-
         }
 
         // set mesh
+        viewer.selected_data_index = 1;
         viewer.data().set_mesh(V, F);
+        //viewer.data().compute_normals();
         viewer.data().set_face_based(true);
 
         // 
@@ -98,6 +102,9 @@ bool pre_draw(Viewer& viewer) {
 }
 
 void clear(Viewer &viewer) {
+    viewer.selected_data_index = 0;
+    viewer.data().clear();
+    viewer.selected_data_index = 1;
     viewer.data().clear();
     cleared = true;
 }
@@ -235,13 +242,13 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         MatrixXd VC;
         MatrixXi FC;
         MatrixXi J; 
-        igl::copyleft::cgal::intersect_with_half_space(V_base, F_base, p,  n, VC, FC, J);
+        igl::copyleft::cgal::intersect_with_half_space(V, F_base, p,  n, VC, FC, J);
 
-        viewer.data().clear();
-        viewer.data().set_mesh(VC, FC);
-        viewer.data().compute_normals();
+        clear(viewer);
+        V = VC;
+        F = FC;
+        //viewer.data().set_mesh(VC, FC);
         has_plane = false;
-
 
     }
 }
@@ -311,8 +318,17 @@ int main(int argc, char *argv[]) {
             ImGuiWindowFlags_NoSavedSettings
         );   
 
-        ImGui::Checkbox("Set Balance Spot", &set_balance_spot);
+        
 
+        ImGui::Checkbox("Set Balance Spot", &set_balance_spot);
+        ImGui::DragFloat("Move spot up/down", &y_move_balance_spot, 0.1);
+        if (ImGui::IsItemActive()) {
+            V  = V_base.rowwise() - RowVector3d(0, y_move_balance_spot, 0);
+            clear(viewer);
+            set_plane();
+        }
+
+        ImGui::SliderAngle("Rotate around balancing spot", &rotate_balancing_spot);
 
         ImGui::Checkbox("Set Gravity", &set_gravity);
         ImGui::InputDouble("Gravity x", &gravity[0], 0., 0);
@@ -343,7 +359,11 @@ int main(int argc, char *argv[]) {
 
     // Plot the mesh
 
-    viewer.data().set_mesh(V, F);
-    viewer.data().set_face_based(true);
+    //viewer.data().set_mesh(V, F);
+    //viewer.data().set_face_based(true);
+
+    viewer.append_mesh(); // now we have 2 mesh
+    // mesh 0 = plane
+    // mesh 1 = mesh
     viewer.launch();
 }
