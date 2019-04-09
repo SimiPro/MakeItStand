@@ -35,11 +35,14 @@ Eigen::MatrixXd planeFN;
 Eigen::MatrixXi planeF;
 
 Eigen::RowVector3d com;
+Eigen::RowVector3d gravity;
+float gra_xy, gra_xz;
 bool com_is_set = false;
+bool gravity_is_set = false;
 
-Eigen::Vector3d gravity;
-Eigen::Vector3d gravity_from; 
-Eigen::Vector3d gravity_to;
+//Eigen::Vector3d gravity;
+//Eigen::Vector3d gravity_from; 
+//Eigen::Vector3d gravity_to;
 
 int num_handles = 5;
 vector<Eigen::Vector3d> handles;
@@ -116,11 +119,11 @@ void update_viewer(Viewer& viewer){
     if(com_is_set) {
         viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
     }
-    //if(gravity_is_set) {
-    //    Eigen::RowVector3d temp = com + 100 * gravity;
-    //    viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
-    //    viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
-    //}
+    if(gravity_is_set) {
+        Eigen::RowVector3d temp = com + 100 * gravity;
+        viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
+        viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
+    }
     //if(balance_point_is_set) {
     //    viewer.data().add_points(balance_point, Eigen::RowVector3d(0,1,0));
     //}
@@ -214,19 +217,19 @@ bool mouse_up(Viewer& viewer, int button, int modifier) {
         cout << "mouse up y: " << y << endl;
     }
 
-    if (set_gravity) {
-        gravity_from = {mouse_down_x, mouse_down_y, 0};
-        gravity_to = {x, y, 0};
-        gravity = (gravity_to - gravity_from).normalized();
-        Eigen::MatrixXd tmp; tmp.resize(2,3);
-        tmp.row(0) = V_box.row(0);
-        double tmp_length = (V_box.row(0) - V_box.row(1)).norm() / 5;
-        tmp.row(1) = V_box.row(0) + gravity.transpose() * tmp_length;
-        viewer.data().add_points(tmp, Eigen::RowVector3d(1,0,0));
-        viewer.data().add_edges(tmp.row(0), tmp.row(1),Eigen::RowVector3d(1,0,0));
-        set_gravity = false;
-        return true;
-    }
+    //if (set_gravity) {
+    //    gravity_from = {mouse_down_x, mouse_down_y, 0};
+    //    gravity_to = {x, y, 0};
+    //    gravity = (gravity_to - gravity_from).normalized();
+    //    Eigen::MatrixXd tmp; tmp.resize(2,3);
+    //    tmp.row(0) = V_box.row(0);
+    //    double tmp_length = (V_box.row(0) - V_box.row(1)).norm() / 5;
+    //    tmp.row(1) = V_box.row(0) + gravity.transpose() * tmp_length;
+    //    viewer.data().add_points(tmp, Eigen::RowVector3d(1,0,0));
+    //    viewer.data().add_edges(tmp.row(0), tmp.row(1),Eigen::RowVector3d(1,0,0));
+    //    set_gravity = false;
+    //    return true;
+    //}
 
     return false;
 }
@@ -301,6 +304,15 @@ void update_com() {
     com_is_set = true;
 }
 
+void update_gravity() {
+    double x, y, z;
+    x = std::cos(gra_xz / 180 * M_PI) * std::sin(gra_xy / 180 * M_PI);
+    y = -std::cos(gra_xy / 180. * M_PI);
+    z = std::sin(gra_xz / 180 * M_PI) * std::sin(gra_xy / 180. * M_PI);
+    gravity = Eigen::RowVector3d(x, y, z);
+    gravity_is_set = true;
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         cout << "Usage ./bin <mesh.off>" << endl;
@@ -347,6 +359,15 @@ int main(int argc, char *argv[]) {
 	    update_viewer(viewer);
         }
 
+	//gravity
+	ImGui::SliderFloat("Gravity angle in xy-plane", &gra_xy, -180.f, 180.f);
+        ImGui::SliderFloat("Gravity angle in xz-plane", &gra_xz, -180.f, 180.f);
+	if (ImGui::Button("Update gravity", ImVec2(-1,0)))
+        {
+            update_gravity();
+            update_viewer(viewer);
+        }
+
         ImGui::Checkbox("Set Balance Spot", &set_balance_spot);
         ImGui::DragFloat("Move spot up/down", &y_move_balance_spot, 0.1);
         if (ImGui::IsItemActive()) {
@@ -357,10 +378,10 @@ int main(int argc, char *argv[]) {
 
         ImGui::SliderAngle("Rotate around balancing spot", &rotate_balancing_spot);
 
-        ImGui::Checkbox("Set Gravity", &set_gravity);
-        ImGui::InputDouble("Gravity x", &gravity[0], 0., 0);
-        ImGui::InputDouble("Gravity y", &gravity[1], 0., 0);
-        ImGui::InputDouble("Gravity z", &gravity[2], 0., 0);
+        //ImGui::Checkbox("Set Gravity", &set_gravity);
+        //ImGui::InputDouble("Gravity x", &gravity[0], 0., 0);
+        //ImGui::InputDouble("Gravity y", &gravity[1], 0., 0);
+        //ImGui::InputDouble("Gravity z", &gravity[2], 0., 0);
 
 
 
