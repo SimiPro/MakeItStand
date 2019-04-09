@@ -20,7 +20,9 @@ using namespace std;
 
 typedef igl::opengl::glfw::Viewer Viewer;
 
-
+//before rotation and cut
+Eigen::MatrixXd V_original;
+//before cut
 Eigen::MatrixXd V_base;
 Eigen::MatrixXd FN_base;
 Eigen::MatrixXi F_base;
@@ -98,6 +100,16 @@ bool pre_draw(Viewer& viewer) {
                 viewer.data().add_points(p_handles[i], Eigen::RowVector3d(1, 0, 0));
         }
 
+	if (com_is_set) {
+            viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
+	}
+
+	if (gravity_is_set) {
+            Eigen::RowVector3d temp = com + 100 * gravity;
+            viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
+            viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
+	}
+
 
     }
 
@@ -112,22 +124,22 @@ void clear(Viewer &viewer) {
     cleared = true;
 }
 
-void update_viewer(Viewer& viewer){
-    viewer.data().clear();
-    viewer.data().set_mesh(V, F);
-    viewer.data().set_face_based(true);
-    if(com_is_set) {
-        viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
-    }
-    if(gravity_is_set) {
-        Eigen::RowVector3d temp = com + 100 * gravity;
-        viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
-        viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
-    }
-    //if(balance_point_is_set) {
-    //    viewer.data().add_points(balance_point, Eigen::RowVector3d(0,1,0));
-    //}
-}
+//void update_viewer(Viewer& viewer){
+//    viewer.data().clear();
+//    viewer.data().set_mesh(V, F);
+//    viewer.data().set_face_based(true);
+//    if(com_is_set) {
+//        viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
+//    }
+//    if(gravity_is_set) {
+//        Eigen::RowVector3d temp = com + 100 * gravity;
+//        viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
+//        viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
+//    }
+//    //if(balance_point_is_set) {
+//    //    viewer.data().add_points(balance_point, Eigen::RowVector3d(0,1,0));
+//    //}
+//}
 
 void set_plane() {
     // Find the bounding box
@@ -335,6 +347,7 @@ void align_gravity() {
     update_com();
     V = V.rowwise() - com;
     com = Eigen::RowVector3d(0, 0, 0);
+    V_base = V;
 
     return;
 }
@@ -349,6 +362,7 @@ int main(int argc, char *argv[]) {
     }
 
     igl::per_face_normals(V,F, FN);
+    V_original = V;
     V_base = V;
     FN_base = FN;
     F_base = F;
@@ -382,7 +396,8 @@ int main(int argc, char *argv[]) {
 	//center of mass
 	if (ImGui::Button("Update center of mass", ImVec2(-1,0))){
             update_com();
-	    update_viewer(viewer);
+	    //update_viewer(viewer);
+	    clear(viewer);
         }
 
 	//gravity
@@ -391,12 +406,14 @@ int main(int argc, char *argv[]) {
 	if (ImGui::Button("Update gravity", ImVec2(-1,0)))
         {
             update_gravity();
-            update_viewer(viewer);
+            //update_viewer(viewer);
+	    clear(viewer);
         }
         if (ImGui::Button("rotate model to align gravity", ImVec2(-1,0)))
         {
             align_gravity();
-            update_viewer(viewer);
+            //update_viewer(viewer);
+	    clear(viewer);
         }
 
         ImGui::Checkbox("Set Balance Spot", &set_balance_spot);
