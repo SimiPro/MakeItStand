@@ -340,16 +340,14 @@ void align_gravity() {
     //rot_mat = rot.toRotationMatrix();
     Eigen::Quaterniond quat = Eigen::Quaterniond().setFromTwoVectors(gravity, y);
     rot_mat = quat.toRotationMatrix();
-    V = V * rot_mat.transpose();
+    V = V_base * rot_mat.transpose();
     gravity = gravity * rot_mat.transpose();
 
     //translation
     update_com();
-    V = V.rowwise() - com;
-    com = Eigen::RowVector3d(0, 0, 0);
-    V_base = V;
-
-    return;
+   // V = V.rowwise() - com;
+    //com = Eigen::RowVector3d(0, 0, 0);
+    //V_base = V;
 }
 
 int main(int argc, char *argv[]) {
@@ -407,13 +405,12 @@ int main(int argc, char *argv[]) {
         {
             update_gravity();
             //update_viewer(viewer);
-	    clear(viewer);
+            clear(viewer);
         }
-        if (ImGui::Button("rotate model to align gravity", ImVec2(-1,0)))
-        {
+        if (ImGui::Button("rotate model to align gravity", ImVec2(-1,0))) {
             align_gravity();
             //update_viewer(viewer);
-	    clear(viewer);
+            clear(viewer);
         }
 
         ImGui::Checkbox("Set Balance Spot", &set_balance_spot);
