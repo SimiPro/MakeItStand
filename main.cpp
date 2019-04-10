@@ -39,7 +39,6 @@ Eigen::MatrixXi planeF;
 Eigen::RowVector3d com;
 Eigen::RowVector3d gravity;
 float gra_xy, gra_xz;
-bool com_is_set = false;
 bool gravity_is_set = false;
 
 //Eigen::Vector3d gravity;
@@ -68,6 +67,12 @@ Eigen::MatrixXd V_box;
 double mouse_down_x;
 double mouse_down_y;
 
+void update_com() {
+    Eigen::VectorXd s10;
+    props(V, F, FN, 0.1,  s10);
+    com = getCoM(s10);
+}
+
 void closest_point(const Eigen::RowVector3d p, Eigen::RowVector3d &np) {
     Eigen::MatrixXd pts_neg = V.rowwise() - p;
     Eigen::VectorXd nn = pts_neg.rowwise().squaredNorm();
@@ -78,6 +83,8 @@ void closest_point(const Eigen::RowVector3d p, Eigen::RowVector3d &np) {
 
 bool pre_draw(Viewer& viewer) {
     if (cleared) {
+        cleared = false;
+
         if (has_plane) {    
             viewer.selected_data_index = 0;
             viewer.data().set_mesh(planeV, planeF);
@@ -91,24 +98,20 @@ bool pre_draw(Viewer& viewer) {
         viewer.data().set_face_based(true);
 
         // 
+        update_com();
         viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
 
-        cleared = false;
 
         for (int i = 0; i < used_handles.size(); i++) {
             if (used_handles[i])
                 viewer.data().add_points(p_handles[i], Eigen::RowVector3d(1, 0, 0));
         }
 
-	if (com_is_set) {
-            viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
-	}
-
-	if (gravity_is_set) {
-            Eigen::RowVector3d temp = com + 100 * gravity;
-            viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
-            viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
-	}
+    	if (gravity_is_set) {
+                Eigen::RowVector3d temp = com + 100 * gravity;
+                viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
+                viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
+    	}
 
 
     }
@@ -162,18 +165,12 @@ void set_plane() {
     planeFN.row(1) = Eigen::RowVector3d(0,1,0);
 
     has_plane = true;
-
-    
-
 }
 
 bool mouse_down(Viewer& viewer, int button, int modifier) {
     mouse_down_x = viewer.current_mouse_x;
     mouse_down_y = viewer.core.viewport(3) - viewer.current_mouse_y;
-    if (DEBUG) {
-        cout << "mouse down x: " << mouse_down_x << endl;
-        cout << "mouse down y: " << mouse_down_y << endl;
-    }
+
     for (int i =0; i < num_handles; i++) {
         if (!set_handles[i]) continue;
         set_handles[i] = false;
@@ -280,8 +277,6 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         V = VC;
         F = FC;
         //viewer.data().set_mesh(VC, FC);
-        has_plane = false;
-
     }
 }
 
@@ -310,13 +305,6 @@ void setBoudingBox() {
     }
 }
 
-void update_com() {
-    double vol;
-    igl::centroid(V, F, com, vol);
-    com_is_set = true;
-    return;
-}
-
 void update_gravity() {
     double x, y, z;
     x = std::cos(gra_xz / 180 * M_PI) * std::sin(gra_xy / 180 * M_PI);
@@ -324,7 +312,6 @@ void update_gravity() {
     z = std::sin(gra_xz / 180 * M_PI) * std::sin(gra_xy / 180. * M_PI);
     gravity = Eigen::RowVector3d(x, y, z);
     gravity_is_set = true;
-    return;
 }
 
 void align_gravity() {
@@ -391,18 +378,30 @@ int main(int argc, char *argv[]) {
             ImGuiWindowFlags_NoSavedSettings
         );   
 
-	//center of mass
-	if (ImGui::Button("Update center of mass", ImVec2(-1,0))){
-            update_com();
-	    //update_viewer(viewer);
-	    clear(viewer);
+
+        ImGui::Checkbox("Set Balance Spot", &set_balance_spot);
+        ImGui::DragFloat("Move spot up/down", &y_move_balance_spot, 0.1);
+        if (ImGui::IsItemActive()) {
+            V  = V_base.rowwise() - RowVector3d(0, y_move_balance_spot, 0);
+            clear(viewer);
+            set_plane();
         }
 
+
 	//gravity
-	ImGui::SliderFloat("Gravity angle in xy-plane", &gra_xy, -180.f, 180.f);
+        ImGui::SliderFloat("Gravity angle in xy-plane", &gra_xy, -180.f, 180.f);
+        if (ImGui::IsItemActive()) {
+            update_gravity();
+            clear(viewer);
+            set_plane();
+        }
         ImGui::SliderFloat("Gravity angle in xz-plane", &gra_xz, -180.f, 180.f);
-	if (ImGui::Button("Update gravity", ImVec2(-1,0)))
-        {
+        if (ImGui::IsItemActive()) {
+            update_gravity();
+            clear(viewer);
+            set_plane();
+        }
+        if (ImGui::Button("Update gravity", ImVec2(-1,0))){
             update_gravity();
             //update_viewer(viewer);
             clear(viewer);
@@ -413,13 +412,6 @@ int main(int argc, char *argv[]) {
             clear(viewer);
         }
 
-        ImGui::Checkbox("Set Balance Spot", &set_balance_spot);
-        ImGui::DragFloat("Move spot up/down", &y_move_balance_spot, 0.1);
-        if (ImGui::IsItemActive()) {
-            V  = V_base.rowwise() - RowVector3d(0, y_move_balance_spot, 0);
-            clear(viewer);
-            set_plane();
-        }
 
         ImGui::SliderAngle("Rotate around balancing spot", &rotate_balancing_spot);
 
@@ -459,4 +451,6 @@ int main(int argc, char *argv[]) {
     // mesh 0 = plane
     // mesh 1 = mesh
     viewer.launch();
+
+    clear(viewer);
 }
