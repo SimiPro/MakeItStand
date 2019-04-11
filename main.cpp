@@ -7,6 +7,7 @@
 #include <limits>
 
 #include <igl/readOBJ.h>
+#include <igl/writeOFF.h>
 #include <igl/unproject_onto_mesh.h>
 #include <igl/ray_mesh_intersect.h>
 #include <igl/per_face_normals.h>
@@ -292,20 +293,41 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         MatrixXd new_V; 
         MatrixXi new_F;
         MatrixXd new_N;
+        // just display voxelization
         voxal.triangulate(new_V, new_F, new_N);
+
         clear(viewer);
         cleared =  false;
         viewer.data().set_mesh(new_V, new_F);
+        igl::per_face_normals(new_V, new_F, new_N);
         viewer.data().set_normals(new_N);
 
-        MatrixXd C;
-        C.resize(new_F.rows(), 3);
-/*
-        for (int i = 0; i < new_F.rows(); i++) {
-            double x = new_F.row(i)[0], y = new_F.row(i)[1], z = new_F.row(i)[2];
-            
-        }
-*/
+        VectorXd s10; 
+        props(new_V, new_F, new_N, 0.1,  s10);    
+        cout << "com1: " << endl;
+        cout << getCoM(s10) << endl;
+
+
+
+        // now calculate center of mass by adding all together
+        //vector<MatrixXd> faceNormals;
+        //vector<MatrixXi> boxes;
+        //voxal.triangulate_with_vectors(new_V, faceNormals, boxes);
+
+
+//        Eigen::VectorXd s10_all; s10_all.resize(10); s10_all.setZero();
+
+  //      for (int i = 0; i < boxes.size(); i++) {
+    //        VectorXd s10; 
+     //       props(new_V, boxes[i], faceNormals[i], 0.1,  s10);    
+      //      s10_all += s10;
+       // }
+        
+
+        RowVector3d vCom = getCoM(s10).transpose();
+        viewer.data().add_points(vCom, Eigen::RowVector3d(0, 0, 1));
+        cout << "com2: " << endl;
+        cout << vCom << endl;
 
     }
 }
@@ -375,6 +397,11 @@ int main(int argc, char *argv[]) {
         // Read points and normals
         igl::readOFF(argv[1],V,F,N);
     }
+
+    // SIMPLE BOX
+        
+    //
+
 
     igl::per_face_normals(V,F, FN);
     V_original = V;
