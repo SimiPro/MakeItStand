@@ -79,16 +79,26 @@ public:
 
 
 
-    void triangulate(Eigen::MatrixXd &new_V, Eigen::MatrixXi &new_F) {
+    void triangulate(Eigen::MatrixXd &new_V, Eigen::MatrixXi &new_F, MatrixXd &new_N) {
         MatrixXd tmpV;
         MatrixXi tmpF;
+        MatrixXd tmpN;
         tmpV.resize(resolution*resolution*resolution*8, 3);
         tmpF.resize(resolution*resolution*resolution*12, 3);
+        tmpN.resize(resolution*resolution*resolution*12, 3);
         int v_counter = 0, f_counter = 0;
+        std::cout << "triangulation progress: " << endl;
         for (int x = 0; x < resolution; x++) {
             for (int y = 0; y < resolution; y++) {
                 for (int z = 0; z < resolution; z++) {
-                    if (sdf[x][y][z] > 0) continue; 
+                    int idx = x*resolution*resolution+y*resolution+z;
+                    if (idx % 1000 == 0) {
+                        float progress = (100./(resolution*resolution*resolution)*(idx));
+                        cout << progress << "% " << endl << flush;
+                    }
+                    
+
+                    if (sdf[x][y][z] >= 0) continue; 
                     int v_start = v_counter;
 
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
@@ -103,33 +113,48 @@ public:
 
                     // front
                     tmpF.row(f_counter++) = RowVector3i(v_start + 0, v_start + 1, v_start + 2);
+                    tmpN.row(f_counter-1) = RowVector3d(0,0,-1);
                     tmpF.row(f_counter++) = RowVector3i(v_start + 1, v_start + 3, v_start + 2);
+                    tmpN.row(f_counter-1) = RowVector3d(0,0,-1);
 
                     // right
                     tmpF.row(f_counter++) = RowVector3i(v_start + 1, v_start + 4, v_start + 3);
+                    tmpN.row(f_counter-1) = RowVector3d(1,0,0);
                     tmpF.row(f_counter++) = RowVector3i(v_start + 4, v_start + 5, v_start + 3);
+                    tmpN.row(f_counter-1) = RowVector3d(1,0,0);
+
 
                     // bottom 
                     tmpF.row(f_counter++) = RowVector3i(v_start + 0, v_start + 1, v_start + 6);
+                    tmpN.row(f_counter-1) = RowVector3d(0,-1,0);
                     tmpF.row(f_counter++) = RowVector3i(v_start + 1, v_start + 4, v_start + 6);
+                    tmpN.row(f_counter-1) = RowVector3d(0,-1,0);
 
                     // left
                     tmpF.row(f_counter++) = RowVector3i(v_start + 0, v_start + 6, v_start + 2);
+                    tmpN.row(f_counter-1) = RowVector3d(-1,0,0);
                     tmpF.row(f_counter++) = RowVector3i(v_start + 6, v_start + 7, v_start + 2);
+                    tmpN.row(f_counter-1) = RowVector3d(-1,0,0);
 
                     // top
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 2, v_start + 3, v_start + 7);
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 3, v_start + 5, v_start + 7);
+                    tmpF.row(f_counter++) = RowVector3i(v_start + 5, v_start + 7, v_start + 2);
+                    tmpN.row(f_counter-1) = RowVector3d(0,1,0);
+                    tmpF.row(f_counter++) = RowVector3i(v_start + 3, v_start + 5, v_start + 2);
+                    tmpN.row(f_counter-1) = RowVector3d(0,1,0);
 
                     // back
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 4, v_start + 5, v_start + 7);
                     tmpF.row(f_counter++) = RowVector3i(v_start + 6, v_start + 5, v_start + 7);
+                    tmpN.row(f_counter-1) = RowVector3d(0,0,1);
+                    tmpF.row(f_counter++) = RowVector3i(v_start + 6, v_start + 4, v_start + 5);
+                    tmpN.row(f_counter-1) = RowVector3d(0,0,1);
                 }
             }
         }
+        cout << endl << "finihsed triangulation" << endl;
 
         new_V = tmpV.block(0,0, v_counter, 3);
         new_F = tmpF.block(0,0, f_counter, 3);
+        new_N = tmpN.block(0,0, f_counter, 3);
     }
     
 
@@ -403,10 +428,22 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         Voxalization voxal(V, F, resolution , com);
         MatrixXd new_V; 
         MatrixXi new_F;
-        voxal.triangulate(new_V, new_F);
+        MatrixXd new_N;
+        voxal.triangulate(new_V, new_F, new_N);
         clear(viewer);
         cleared =  false;
         viewer.data().set_mesh(new_V, new_F);
+        viewer.data().set_normals(new_N);
+
+        MatrixXd C;
+        C.resize(new_F.rows(), 3);
+/*
+        for (int i = 0; i < new_F.rows(); i++) {
+            double x = new_F.row(i)[0], y = new_F.row(i)[1], z = new_F.row(i)[2];
+            
+        }
+*/
+
     }
 }
 
@@ -490,7 +527,6 @@ int main(int argc, char *argv[]) {
 
     // zero com
     com.resize(3); com.setZero();
-
 
     // set gravity to 0 for start
     gravity.resize(3); gravity.setZero();
