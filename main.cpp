@@ -17,6 +17,7 @@
 
 #include "voxel2.h"
 #include "mass_props.h"
+#include "optim.h"
 
 bool DEBUG = true;
 
@@ -80,8 +81,8 @@ double mouse_down_y;
 
 void update_com() {
     Eigen::VectorXd s10;
-    props(V, F, FN, 0.1,  s10);
-    com = getCoM(s10);
+    props(V, F, 0.1,  s10);
+    com = getCoM(s10).transpose();
 }
 
 void closest_point(const Eigen::RowVector3d p, Eigen::RowVector3d &np) {
@@ -266,7 +267,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         cout << com << endl;
 
         Eigen::VectorXd s10;
-        props(V, F, FN, 0.1,  s10);
+        props(V, F, 0.1,  s10);
 
 
         Vector3d com = getCoM(s10);
@@ -295,15 +296,15 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         MatrixXd new_N;
         // just display voxelization
         voxal.triangulate(new_V, new_F, new_N);
-
+        igl::per_face_normals(new_V, new_F, new_N);
         clear(viewer);
         cleared =  false;
         viewer.data().set_mesh(new_V, new_F);
-        igl::per_face_normals(new_V, new_F, new_N);
+        
         viewer.data().set_normals(new_N);
 
         VectorXd s10; 
-        props(new_V, new_F, new_N, 0.1,  s10);    
+        props(new_V, new_F, 0.1,  s10);    
         cout << "com1: " << endl;
         cout << getCoM(s10) << endl;
 
@@ -328,6 +329,8 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         viewer.data().add_points(vCom, Eigen::RowVector3d(0, 0, 1));
         cout << "com2: " << endl;
         cout << vCom << endl;
+
+    } else if (key == '4') { // optimize! :)
 
     }
 }
