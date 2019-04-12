@@ -332,6 +332,28 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
 
     } else if (key == '4') { // optimize! :)
 
+        // s10 over whole mesh
+        VectorXd s10all;
+        props(V, F, 0.1, s10all);
+
+        // s10 of voxalization  should only consider interior 
+        vector<MatrixXd> faceNormals;
+        vector<MatrixXi> boxes;
+        MatrixXd new_V;
+        vector<VectorXd> b_s10;
+        Voxalization voxal(V, F, resolution , com);
+        voxal.triangulate_with_vectors(new_V, faceNormals, boxes);
+        for (int i = 0; i < boxes.size(); i++) {
+            VectorXd s10; 
+            props(new_V, boxes[i], 0.1,  s10);    
+            b_s10.push_back(s10);
+        }
+
+        VectorXd betas;
+        optim(s10all, b_s10, betas);
+
+
+
     }
 }
 

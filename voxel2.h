@@ -84,7 +84,7 @@ public:
                     }
                     
 
-                    if (sdf[x][y][z] >= 0) continue; 
+                    if (sdf[x][y][z] > 0) continue; 
                     int v_start = v_counter;
 
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
