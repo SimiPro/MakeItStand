@@ -5,25 +5,26 @@
 //#include <CGAL/Gmpzf.h>
 //typedef CGAL::Gmpzf ET;
 //#else
-//#include <CGAL/MP_Float.h>
-//typedef CGAL::MP_Float ET;
+#include <CGAL/MP_Float.h>
+typedef CGAL::MP_Float ET;
 //#endif
-#include <CGAL/Gmpq.h>
-typedef CGAL::Gmpq ET;
+//#include <CGAL/Gmpq.h>
+//typedef CGAL::Gmpq ET;
 
 // program and solution types
 
 typedef CGAL::Quadratic_program<ET> Program;
 typedef CGAL::Quadratic_program_solution<ET> Solution;
-typedef CGAL::Quotient<ET> SolT;
 
 // round up to next integer double
-double ceil_to_double(const SolT& x) {
+double ceil_to_double(const CGAL::Quotient<ET>& x) {
   double a = std::ceil(CGAL::to_double(x));
   while (a < x) a += 1;
   while (a-1 >= x) a -= 1;
   return a;
 }
+
+double EPS = 1e-3;
 
 void optim(const VectorXd &b_s10_all, const vector<VectorXd> &b_s10_interior, VectorXd &betas) {
     cout << "Start hollowing calculation.. " << endl;
@@ -52,14 +53,25 @@ void optim(const VectorXd &b_s10_all, const vector<VectorXd> &b_s10_interior, Ve
     Solution s = CGAL::solve_linear_program(lp, ET());
     assert (s.solves_linear_program(lp));
 
-    cout <<  ceil_to_double(s.objective_value()) << endl;
-    //cout << s << endl;
+    //cout <<  ceil_to_double(s.objective_value()) << endl;
+   // cout << "objective value: " << s.objective_value() << endl;
+   // cout << s << endl;
 
     Solution::Index_iterator it = s.basic_variable_indices_begin();
     Solution::Index_iterator end = s.basic_variable_indices_end();
-   // for (; it != end; ++it) std::cout << *it << " ";
+    int counter = 0;
+    for (; it != end; ++it) {
+        double val = ceil_to_double(*it);
+        if (val < EPS) { // hollow this shizzl
+            betas[counter] = 0;
+        } else {
+            betas[counter] = 1;
+        }
+        counter++;
+    }
     std::cout << std::endl;
     
-
+    cout << "betas: " << endl;
+    cout << betas << endl;
 
 }
