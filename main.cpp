@@ -304,7 +304,9 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         viewer.data().set_normals(new_N);
 
         VectorXd s10; 
-        props(new_V, new_F, 0.1,  s10);    
+        props(new_V, new_F, 0.1,  s10);
+        cout << "s10:" << endl;
+        cout << s10 << endl;    
         cout << "com1: " << endl;
         cout << getCoM(s10) << endl;
 
@@ -353,6 +355,28 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         optim(s10all, b_s10, betas);
 
 
+        double EPS = 1e-3;
+        for (int i = 0; i < betas.rows(); i++) {
+            voxal.empty_box(i);
+            if (betas[i] > 1 - EPS) {
+                voxal.empty_box(i);
+            }
+        }
+
+        MatrixXi new_F;
+        MatrixXd new_N;
+        voxal.triangulate(new_V, new_F, new_N);
+        clear(viewer);
+        cleared =  false;
+        viewer.data().set_mesh(new_V, new_F);
+
+        VectorXd s10; 
+        props(new_V, new_F, 0.1,  s10);
+        cout << "s10:" << endl;
+        RowVector3d vCom = getCoM(s10).transpose();
+        viewer.data().add_points(vCom, Eigen::RowVector3d(0, 0, 1));
+        cout << "com: " << endl;
+        cout << vCom << endl;
 
     }
 }

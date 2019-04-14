@@ -3,10 +3,25 @@
 using namespace std;
 using namespace Eigen;
 
+
 // VOXALIZATION 
-typedef vector<vector<vector<double > > > Grid;
-typedef vector<vector<double>> VII;
-typedef vector<double> VI;
+
+struct Box {
+    bool filled;
+    double sdf;
+    Vector3d center;
+};
+
+struct Tripletz {
+    int x,y,z;
+};
+
+
+typedef vector<vector<vector<Box > > > Grid;
+typedef vector<vector<Box>> VII;
+typedef vector<Box> VI;
+
+
 
 class Voxalization {
     MatrixXd &V;
@@ -15,12 +30,13 @@ class Voxalization {
     int resolution;
     Vector3d m;
     Vector3d M;
-    Grid sdf;
+    Grid grid;
     double dx, dy, dz;
+    vector<Tripletz> box_id_to_grid_id; 
 
 public:
     Voxalization(MatrixXd &V_, MatrixXi &F_, int resolution_, RowVector3d &com_): V(V_), F(F_), resolution(resolution_),
-                com(com_), sdf(resolution_, VII(resolution_, VI(resolution_, 0))) {
+                com(com_), grid(resolution_, VII(resolution_, VI(resolution_, {true, 0}))) {
 
         // BOUNDING BOX
         m = V.colwise().minCoeff();
@@ -42,6 +58,8 @@ public:
                 for (int z = 0; z < resolution; z++) {
                     Vector3d box_center(m(0) + (x + 0.5)*dx, m(1) + (y + 0.5)*dy, m(2) + (z + 0.5)*dz);
                     Q.row(counter++) = box_center;
+                    box_id_to_grid_id.push_back({x,y,z});
+                    grid[x][y][z].center = box_center;
                 }
             }
         }
@@ -61,10 +79,20 @@ public:
         for (int x = 0; x < resolution; x++) {
             for (int y = 0; y < resolution; y++) {
                 for (int z = 0; z < resolution; z++) {
-                    sdf[x][y][z] = S[counter++];
+                    grid[x][y][z].sdf = S[counter++];
                 }
             }
         }
+    }
+
+    void empty_box(int id) {
+        assert(id < box_id_to_grid_id.size() && id >= 0);
+        Tripletz trip = box_id_to_grid_id[id];
+        cout << "before: " << grid[trip.x][trip.y][trip.z].filled  <<endl;
+        grid[trip.x][trip.y][trip.z].filled = false;
+        cout << "empty: " << id  << " to: " << trip.x << "," << trip.y << "," << trip.z << endl;
+        cout << "after: " << grid[trip.x][trip.y][trip.z].filled  << endl;
+
     }
 
 
@@ -84,7 +112,7 @@ public:
                     }
                     
 
-                    if (sdf[x][y][z] > 0) continue; 
+                    if (grid[x][y][z].sdf >= 0 || !grid[x][y][z].filled) continue; 
                     int v_start = v_counter;
 
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
@@ -166,7 +194,8 @@ public:
                         float progress = (100./(resolution*resolution*resolution)*(idx));
                         //cout << progress << "% " << endl << flush;
                     }
-                    if (sdf[x][y][z] >= 0) continue; 
+                    if (grid[x][y][z].sdf >= 0 || !grid[x][y][z].filled) continue; 
+                    cout << "filled: " << grid[x][y][z].filled << endl;
 
                     int v_start = v_counter;
 

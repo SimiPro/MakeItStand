@@ -24,8 +24,11 @@ double ceil_to_double(const CGAL::Quotient<ET>& x) {
   return a;
 }
 
-double EPS = 1e-3;
+double EPS = 0.1;
 
+// optimize boxes
+// beta[i] = 1 empty box
+// beta[i] = 0 fill box
 void optim(const VectorXd &b_s10_all, const vector<VectorXd> &b_s10_interior, VectorXd &betas) {
     cout << "Start hollowing calculation.. " << endl;
 
@@ -57,21 +60,31 @@ void optim(const VectorXd &b_s10_all, const vector<VectorXd> &b_s10_interior, Ve
    // cout << "objective value: " << s.objective_value() << endl;
    // cout << s << endl;
 
-    Solution::Index_iterator it = s.basic_variable_indices_begin();
-    Solution::Index_iterator end = s.basic_variable_indices_end();
+    auto it = s.variable_values_begin();
+    auto end = s.variable_values_end();
     int counter = 0;
+    int empty_counter = 0;
+    int non_empty_counter = 0;
     for (; it != end; ++it) {
         double val = ceil_to_double(*it);
-        if (val < EPS) { // hollow this shizzl
+        cout << "var: " << counter << " " << val << endl;
+        if (val < EPS) { // fill this shizzl
+            cout << "fill box" << endl;
             betas[counter] = 0;
-        } else {
+            non_empty_counter++;
+        } else { // val > 1 - EPS -> empty this shizzle
+            cout << "empty box" << endl;
             betas[counter] = 1;
+            empty_counter++;
         }
         counter++;
     }
     std::cout << std::endl;
     
-    cout << "betas: " << endl;
-    cout << betas << endl;
+    //cout << "betas: " << endl;
+    //cout << betas << endl;
+
+    std::cout << "Empty boxes: " << empty_counter << " | filled boxes: " << non_empty_counter << std::endl;
+
 
 }
