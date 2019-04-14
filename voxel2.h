@@ -77,16 +77,20 @@ public:
 
         // set in/out
         counter = 0;
+        int boundary_counter = 0;
         for (int x = 0; x < resolution; x++) {
             for (int y = 0; y < resolution; y++) {
                 for (int z = 0; z < resolution; z++) {
                     grid[x][y][z].sdf = S[counter++];
-                    if (grid[x][y][z].sdf <= sqrt((pow(dx/2, 2) + pow(dy/2, 2) + pow(dz/2, 2)))) {
+                    if (pow(grid[x][y][z].sdf,2) <= pow(dx/2, 2) + pow(dy/2, 2) + pow(dz/2, 2)) {
                         grid[x][y][z].is_boundary = true;
+                        boundary_counter++;
                     }
                 }
             }
         }
+
+        cout << "Of " << counter << " boxes are " << boundary_counter << " boundary boxes" << endl;
     }
 
     void empty_box(int id) {
@@ -97,7 +101,7 @@ public:
     }
 
 
-    void triangulate_with_vectors(Eigen::MatrixXd &new_V, vector<MatrixXi> &faces) {
+    void get_interior_mesh(Eigen::MatrixXd &new_V, vector<MatrixXi> &faces) {
         MatrixXd tmpV;
         tmpV.resize(resolution*resolution*resolution*8, 3);
 
@@ -108,8 +112,9 @@ public:
             for (int y = 0; y < resolution; y++) {
                 for (int z = 0; z < resolution; z++) {
                     if (grid[x][y][z].sdf >= 0 || !grid[x][y][z].filled) continue;
-                    box_id_to_grid_id.push_back({x,y,z}); filled_boxes++;
+                    if (grid[x][y][z].is_boundary) continue;
 
+                    box_id_to_grid_id.push_back({x,y,z}); filled_boxes++;
                     int v_start = v_counter;
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
                     addBoxPoints(tmpV, v_counter, v0);
@@ -194,6 +199,10 @@ public:
 
         new_V = tmpV.block(0,0, v_counter, 3);
         new_F = tmpF.block(0,0, f_counter, 3);
+    }
+
+    void optimize() {
+
     }
     
 

@@ -335,27 +335,33 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         cout << vCom << endl;
 
     } else if (key == '4') { // optimize! :)
+        // 1. calculate mass properties over whole mesh
+        // 2. get boundary mesh and get interior mesh (voxalized)
+        // 3. optimize interior mesh to align CoM with balancing spot (which should be at 0,0,0)
 
-        // s10 over whole mesh
+        // mass properties over whole mesh
         VectorXd s10all;
         props(V, F, 0.1, s10all);
 
-        // s10 of voxalization  should only consider interior 
-        vector<MatrixXi> boxes;
-        MatrixXd new_V;
-        vector<VectorXd> b_s10;
+        // voxalization of mesh
         Voxalization voxal(V, F, resolution , com);
-        voxal.triangulate_with_vectors(new_V, boxes);
+
+        // get interior mesh
+        vector<MatrixXi> boxes; MatrixXd new_V; vector<VectorXd> b_s10;
+        voxal.get_interior_mesh(new_V, boxes);
+
+        // calculate mass proprties of each box of the interior mesh
         for (int i = 0; i < boxes.size(); i++) {
             VectorXd s10; 
             props(new_V, boxes[i], 0.1,  s10);    
             b_s10.push_back(s10);
         }
 
+        // optimize boxes of interior mesh
         VectorXd betas;
         optim(s10all, b_s10, betas);
 
-
+        // empty those boxes
         double EPS = 1e-3;
         for (int i = 0; i < betas.rows(); i++) {
             if (betas[i] > 1 - EPS) {
@@ -363,6 +369,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
             }
         }
 
+        // triangulate mesh
         MatrixXi new_F;
         voxal.triangulate(new_V, new_F);
         clear(viewer);
