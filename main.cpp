@@ -297,7 +297,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         MatrixXi new_F;
         MatrixXd new_N;
         // just display voxelization
-        voxal.triangulate(new_V, new_F, new_N);
+        voxal.triangulate(new_V, new_F);
         igl::per_face_normals(new_V, new_F, new_N);
         clear(viewer);
         cleared =  false;
@@ -341,12 +341,11 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         props(V, F, 0.1, s10all);
 
         // s10 of voxalization  should only consider interior 
-        vector<MatrixXd> faceNormals;
         vector<MatrixXi> boxes;
         MatrixXd new_V;
         vector<VectorXd> b_s10;
         Voxalization voxal(V, F, resolution , com);
-        voxal.triangulate_with_vectors(new_V, faceNormals, boxes);
+        voxal.triangulate_with_vectors(new_V, boxes);
         for (int i = 0; i < boxes.size(); i++) {
             VectorXd s10; 
             props(new_V, boxes[i], 0.1,  s10);    
@@ -365,8 +364,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         }
 
         MatrixXi new_F;
-        MatrixXd new_N;
-        voxal.triangulate(new_V, new_F, new_N);
+        voxal.triangulate(new_V, new_F);
         clear(viewer);
         cleared =  false;
         viewer.data().set_mesh(new_V, new_F);

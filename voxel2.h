@@ -92,7 +92,7 @@ public:
     }
 
 
-    void triangulate_with_vectors(Eigen::MatrixXd &new_V, vector<MatrixXd> &faceNormals, vector<MatrixXi> &faces) {
+    void triangulate_with_vectors(Eigen::MatrixXd &new_V, vector<MatrixXi> &faces) {
         MatrixXd tmpV;
         tmpV.resize(resolution*resolution*resolution*8, 3);
 
@@ -115,56 +115,12 @@ public:
                     filled_boxes++;
 
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
-                    tmpV.row(v_counter++) = v0; // 0
-                    tmpV.row(v_counter++) = v0 + RowVector3d(dx, 0, 0); // 1
-                    tmpV.row(v_counter++) = v0 + RowVector3d(0, dy, 0); // 2
-                    tmpV.row(v_counter++) = v0 + RowVector3d(dx, dy, 0); // 3
-                    tmpV.row(v_counter++) = v0 + RowVector3d(dx, 0, dz); // 4
-                    tmpV.row(v_counter++) = v0 + RowVector3d(dx, dy, dz); // 5
-                    tmpV.row(v_counter++) = v0 + RowVector3d(0, 0, dz); // 6
-                    tmpV.row(v_counter++) = v0 + RowVector3d(0, dy, dz); // 7
+                    addBoxPoints(tmpV, v_counter, v0);
 
                     MatrixXi currFace; currFace.resize(12, 3);
-                    MatrixXd faceNormal; faceNormal.resize(12, 3);
+                    int vs = 0;
+                    addFaces(currFace, vs, v_start);
 
-                    // front
-                    currFace.row(0) = RowVector3i(v_start + 1, v_start + 0, v_start + 2);
-                    faceNormal.row(0) = RowVector3d(0,0,-1);
-                    currFace.row(1) = RowVector3i(v_start + 1, v_start + 2, v_start + 3);
-                    faceNormal.row(1) = RowVector3d(0,0,-1);
-
-                    // right
-                    currFace.row(2) = RowVector3i(v_start + 4, v_start + 1, v_start + 3);
-                    faceNormal.row(2) = RowVector3d(1,0,0);
-                    currFace.row(3) = RowVector3i(v_start + 4, v_start + 3, v_start + 5);
-                    faceNormal.row(3) = RowVector3d(1,0,0);
-
-
-                    // bottom 
-                    currFace.row(4) = RowVector3i(v_start + 0, v_start + 1, v_start + 6);
-                    faceNormal.row(4) = RowVector3d(0,-1,0);
-                    currFace.row(5) = RowVector3i(v_start + 1, v_start + 4, v_start + 6);
-                    faceNormal.row(5) = RowVector3d(0,-1,0);
-
-                    // left
-                    currFace.row(6) = RowVector3i(v_start + 0, v_start + 6, v_start + 2);
-                    faceNormal.row(6) = RowVector3d(-1,0,0);
-                    currFace.row(7) = RowVector3i(v_start + 6, v_start + 7, v_start + 2);
-                    faceNormal.row(7) = RowVector3d(-1,0,0);
-
-                    // top
-                    currFace.row(8) = RowVector3i(v_start + 7, v_start + 5, v_start + 2);
-                    faceNormal.row(8) = RowVector3d(0,1,0);
-                    currFace.row(9) = RowVector3i(v_start + 5, v_start + 3, v_start + 2);
-                    faceNormal.row(9) = RowVector3d(0,1,0);
-
-                    // back
-                    currFace.row(10) = RowVector3i(v_start + 6, v_start + 5, v_start + 7);
-                    faceNormal.row(10) = RowVector3d(0,0,1);
-                    currFace.row(11) = RowVector3i(v_start + 6, v_start + 4, v_start + 5);
-                    faceNormal.row(11) = RowVector3d(0,0,1);
-
-                    faceNormals.push_back(faceNormal);
                     faces.push_back(currFace);
                 }
             }
@@ -176,15 +132,50 @@ public:
 
     }
 
+    void addBoxPoints(MatrixXd &tmpV, int &v_counter, const RowVector3d &v0) {
+        tmpV.row(v_counter++) = v0; // 0
+        tmpV.row(v_counter++) = v0 + RowVector3d(dx, 0, 0); // 1
+        tmpV.row(v_counter++) = v0 + RowVector3d(0, dy, 0); // 2
+        tmpV.row(v_counter++) = v0 + RowVector3d(dx, dy, 0); // 3
+        tmpV.row(v_counter++) = v0 + RowVector3d(dx, 0, dz); // 4
+        tmpV.row(v_counter++) = v0 + RowVector3d(dx, dy, dz); // 5
+        tmpV.row(v_counter++) = v0 + RowVector3d(0, 0, dz); // 6
+        tmpV.row(v_counter++) = v0 + RowVector3d(0, dy, dz); // 7
+    }
 
 
-    void triangulate(Eigen::MatrixXd &new_V, Eigen::MatrixXi &new_F, MatrixXd &new_N) {
+    void addFaces(MatrixXi &tmpF, int &f_counter, int v_start) {
+        // front
+        tmpF.row(f_counter++) = RowVector3i(v_start + 1, v_start + 0, v_start + 2);
+        tmpF.row(f_counter++) = RowVector3i(v_start + 1, v_start + 2, v_start + 3);
+
+        // right
+        tmpF.row(f_counter++) = RowVector3i(v_start + 4, v_start + 1, v_start + 3);
+        tmpF.row(f_counter++) = RowVector3i(v_start + 4, v_start + 3, v_start + 5);
+
+        // bottom 
+        tmpF.row(f_counter++) = RowVector3i(v_start + 0, v_start + 1, v_start + 6);                    
+        tmpF.row(f_counter++) = RowVector3i(v_start + 1, v_start + 4, v_start + 6);
+
+        // left
+        tmpF.row(f_counter++) = RowVector3i(v_start + 0, v_start + 6, v_start + 2);
+        tmpF.row(f_counter++) = RowVector3i(v_start + 6, v_start + 7, v_start + 2);
+
+        // top
+        tmpF.row(f_counter++) = RowVector3i(v_start + 7, v_start + 5, v_start + 2);
+        tmpF.row(f_counter++) = RowVector3i(v_start + 5, v_start + 3, v_start + 2);
+
+        // back
+        tmpF.row(f_counter++) = RowVector3i(v_start + 6, v_start + 5, v_start + 7);
+        tmpF.row(f_counter++) = RowVector3i(v_start + 6, v_start + 4, v_start + 5);
+    }
+
+
+    void triangulate(Eigen::MatrixXd &new_V, Eigen::MatrixXi &new_F) {
         MatrixXd tmpV;
         MatrixXi tmpF;
-        MatrixXd tmpN;
         tmpV.resize(resolution*resolution*resolution*8, 3);
         tmpF.resize(resolution*resolution*resolution*12, 3);
-        tmpN.resize(resolution*resolution*resolution*12, 3);
         int v_counter = 0, f_counter = 0;
         std::cout << "triangulation progress: " << endl;
         int filled_boxes = 0;
@@ -201,51 +192,11 @@ public:
                     int v_start = v_counter;
 
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
-                    tmpV.row(v_counter++) = v0; // 0
-                    tmpV.row(v_counter++) = v0 + RowVector3d(dx, 0, 0); // 1
-                    tmpV.row(v_counter++) = v0 + RowVector3d(0, dy, 0); // 2
-                    tmpV.row(v_counter++) = v0 + RowVector3d(dx, dy, 0); // 3
-                    tmpV.row(v_counter++) = v0 + RowVector3d(dx, 0, dz); // 4
-                    tmpV.row(v_counter++) = v0 + RowVector3d(dx, dy, dz); // 5
-                    tmpV.row(v_counter++) = v0 + RowVector3d(0, 0, dz); // 6
-                    tmpV.row(v_counter++) = v0 + RowVector3d(0, dy, dz); // 7
 
-                    // front
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 1, v_start + 0, v_start + 2);
-                    tmpN.row(f_counter-1) = RowVector3d(0,0,-1);
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 1, v_start + 2, v_start + 3);
-                    tmpN.row(f_counter-1) = RowVector3d(0,0,-1);
-
-                    // right
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 4, v_start + 1, v_start + 3);
-                    tmpN.row(f_counter-1) = RowVector3d(1,0,0);
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 4, v_start + 3, v_start + 5);
-                    tmpN.row(f_counter-1) = RowVector3d(1,0,0);
+                    addBoxPoints(tmpV, v_counter, v0);
+                    addFaces(tmpF, f_counter, v_start);
 
 
-                    // bottom 
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 0, v_start + 1, v_start + 6);
-                    tmpN.row(f_counter-1) = RowVector3d(0,-1,0);
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 1, v_start + 4, v_start + 6);
-                    tmpN.row(f_counter-1) = RowVector3d(0,-1,0);
-
-                    // left
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 0, v_start + 6, v_start + 2);
-                    tmpN.row(f_counter-1) = RowVector3d(-1,0,0);
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 6, v_start + 7, v_start + 2);
-                    tmpN.row(f_counter-1) = RowVector3d(-1,0,0);
-
-                    // top
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 7, v_start + 5, v_start + 2);
-                    tmpN.row(f_counter-1) = RowVector3d(0,1,0);
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 5, v_start + 3, v_start + 2);
-                    tmpN.row(f_counter-1) = RowVector3d(0,1,0);
-
-                    // back
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 6, v_start + 5, v_start + 7);
-                    tmpN.row(f_counter-1) = RowVector3d(0,0,1);
-                    tmpF.row(f_counter++) = RowVector3i(v_start + 6, v_start + 4, v_start + 5);
-                    tmpN.row(f_counter-1) = RowVector3d(0,0,1);
                 }
             }
         }
@@ -254,7 +205,6 @@ public:
 
         new_V = tmpV.block(0,0, v_counter, 3);
         new_F = tmpF.block(0,0, f_counter, 3);
-        new_N = tmpN.block(0,0, f_counter, 3);
     }
     
 
