@@ -9,7 +9,9 @@ using namespace Eigen;
 struct Box {
     bool filled;
     double sdf;
+    bool is_boundary;
     Vector3d center;
+
 };
 
 struct Tripletz {
@@ -36,7 +38,7 @@ class Voxalization {
 
 public:
     Voxalization(MatrixXd &V_, MatrixXi &F_, int resolution_, RowVector3d &com_): V(V_), F(F_), resolution(resolution_),
-                com(com_), grid(resolution_, VII(resolution_, VI(resolution_, {true, 0}))) {
+                com(com_), grid(resolution_, VII(resolution_, VI(resolution_, {true, 0, false}))) {
 
         // BOUNDING BOX
         m = V.colwise().minCoeff();
@@ -79,6 +81,9 @@ public:
             for (int y = 0; y < resolution; y++) {
                 for (int z = 0; z < resolution; z++) {
                     grid[x][y][z].sdf = S[counter++];
+                    if (grid[x][y][z].sdf <= sqrt((pow(dx/2, 2) + pow(dy/2, 2) + pow(dz/2, 2)))) {
+                        grid[x][y][z].is_boundary = true;
+                    }
                 }
             }
         }
@@ -102,21 +107,12 @@ public:
         for (int x = 0; x < resolution; x++) {
             for (int y = 0; y < resolution; y++) {
                 for (int z = 0; z < resolution; z++) {
-                    int idx = x*resolution*resolution+y*resolution+z;
-                    if (idx % 1000 == 0) {
-                        float progress = (100./(resolution*resolution*resolution)*(idx));
-                        cout << progress << "% " << endl << flush;
-                    }
-
                     if (grid[x][y][z].sdf >= 0 || !grid[x][y][z].filled) continue;
-                    box_id_to_grid_id.push_back({x,y,z});
+                    box_id_to_grid_id.push_back({x,y,z}); filled_boxes++;
 
                     int v_start = v_counter;
-                    filled_boxes++;
-
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
                     addBoxPoints(tmpV, v_counter, v0);
-
                     MatrixXi currFace; currFace.resize(12, 3);
                     int vs = 0;
                     addFaces(currFace, vs, v_start);
@@ -178,25 +174,18 @@ public:
         tmpF.resize(resolution*resolution*resolution*12, 3);
         int v_counter = 0, f_counter = 0;
         std::cout << "triangulation progress: " << endl;
+
         int filled_boxes = 0;
         for (int x = 0; x < resolution; x++) {
             for (int y = 0; y < resolution; y++) {
                 for (int z = 0; z < resolution; z++) {
-                    int idx = x*resolution*resolution+y*resolution+z;
-                    if (idx % 1000 == 0) {
-                        float progress = (100./(resolution*resolution*resolution)*(idx));
-                        //cout << progress << "% " << endl << flush;
-                    }
                     if (grid[x][y][z].sdf >= 0 || !grid[x][y][z].filled) continue; 
                     filled_boxes++;
+
                     int v_start = v_counter;
-
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
-
                     addBoxPoints(tmpV, v_counter, v0);
                     addFaces(tmpF, f_counter, v_start);
-
-
                 }
             }
         }
