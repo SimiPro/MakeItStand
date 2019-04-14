@@ -106,6 +106,8 @@ bool pre_draw(Viewer& viewer) {
         // set mesh
         viewer.selected_data_index = 1;
         viewer.data().set_mesh(V, F);
+        viewer.core.align_camera_center(V,F);
+
         //viewer.data().compute_normals();
         viewer.data().set_face_based(true);
 
@@ -357,7 +359,6 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
 
         double EPS = 1e-3;
         for (int i = 0; i < betas.rows(); i++) {
-            voxal.empty_box(i);
             if (betas[i] > 1 - EPS) {
                 voxal.empty_box(i);
             }

@@ -58,7 +58,6 @@ public:
                 for (int z = 0; z < resolution; z++) {
                     Vector3d box_center(m(0) + (x + 0.5)*dx, m(1) + (y + 0.5)*dy, m(2) + (z + 0.5)*dz);
                     Q.row(counter++) = box_center;
-                    box_id_to_grid_id.push_back({x,y,z});
                     grid[x][y][z].center = box_center;
                 }
             }
@@ -88,10 +87,7 @@ public:
     void empty_box(int id) {
         assert(id < box_id_to_grid_id.size() && id >= 0);
         Tripletz trip = box_id_to_grid_id[id];
-        cout << "before: " << grid[trip.x][trip.y][trip.z].filled  <<endl;
         grid[trip.x][trip.y][trip.z].filled = false;
-        cout << "empty: " << id  << " to: " << trip.x << "," << trip.y << "," << trip.z << endl;
-        cout << "after: " << grid[trip.x][trip.y][trip.z].filled  << endl;
 
     }
 
@@ -102,6 +98,7 @@ public:
 
         int v_counter = 0;
         std::cout << "triangulation progress: " << endl;
+        int filled_boxes = 0;
         for (int x = 0; x < resolution; x++) {
             for (int y = 0; y < resolution; y++) {
                 for (int z = 0; z < resolution; z++) {
@@ -110,10 +107,12 @@ public:
                         float progress = (100./(resolution*resolution*resolution)*(idx));
                         cout << progress << "% " << endl << flush;
                     }
-                    
 
-                    if (grid[x][y][z].sdf >= 0 || !grid[x][y][z].filled) continue; 
+                    if (grid[x][y][z].sdf >= 0 || !grid[x][y][z].filled) continue;
+                    box_id_to_grid_id.push_back({x,y,z});
+
                     int v_start = v_counter;
+                    filled_boxes++;
 
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
                     tmpV.row(v_counter++) = v0; // 0
@@ -173,6 +172,8 @@ public:
 
         new_V = tmpV.block(0,0, v_counter, 3);
 
+        std::cout << "triangulation process finished with : " << filled_boxes << " filled boxes" << std::endl;
+
     }
 
 
@@ -186,6 +187,7 @@ public:
         tmpN.resize(resolution*resolution*resolution*12, 3);
         int v_counter = 0, f_counter = 0;
         std::cout << "triangulation progress: " << endl;
+        int filled_boxes = 0;
         for (int x = 0; x < resolution; x++) {
             for (int y = 0; y < resolution; y++) {
                 for (int z = 0; z < resolution; z++) {
@@ -195,8 +197,7 @@ public:
                         //cout << progress << "% " << endl << flush;
                     }
                     if (grid[x][y][z].sdf >= 0 || !grid[x][y][z].filled) continue; 
-                    cout << "filled: " << grid[x][y][z].filled << endl;
-
+                    filled_boxes++;
                     int v_start = v_counter;
 
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
@@ -248,7 +249,8 @@ public:
                 }
             }
         }
-        cout << endl << "finihsed triangulation" << endl;
+        std::cout << "triangulation process finished with : " << filled_boxes << " filled boxes" << std::endl;
+
 
         new_V = tmpV.block(0,0, v_counter, 3);
         new_F = tmpF.block(0,0, f_counter, 3);

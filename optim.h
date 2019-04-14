@@ -67,13 +67,11 @@ void optim(const VectorXd &b_s10_all, const vector<VectorXd> &b_s10_interior, Ve
     int non_empty_counter = 0;
     for (; it != end; ++it) {
         double val = ceil_to_double(*it);
-        cout << "var: " << counter << " " << val << endl;
+        //cout << "var: " << counter << " " << val << endl;
         if (val < EPS) { // fill this shizzl
-            cout << "fill box" << endl;
             betas[counter] = 0;
             non_empty_counter++;
         } else { // val > 1 - EPS -> empty this shizzle
-            cout << "empty box" << endl;
             betas[counter] = 1;
             empty_counter++;
         }
