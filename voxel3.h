@@ -116,7 +116,8 @@ public:
             box->sdf = S[i];
             box->is_boundary = pow(box->sdf,2) <= 2*pow(box->dx/2, 2) + pow(box->dy/2, 2) + pow(box->dz/2, 2);
             if (box->is_boundary && box->depth < max_depth) {
-                num_boxes += 7; // remove the "parent" and replace it with 8 children
+                // remove the "parent" and replace it with 8 children
+                Box *child0 = new Box(box, -1,-1,-1);
                 Box *child1 = new Box(box, -1,-1,1);
                 Box *child2 = new Box(box, -1,1,-1);
                 Box *child3 = new Box(box, -1,1,1);
@@ -125,6 +126,7 @@ public:
                 Box *child6 = new Box(box, 1,1,-1);
                 Box *child7 = new Box(box, 1,1,1);
 
+                box->children.push_back(child0);
                 box->children.push_back(child1);
                 box->children.push_back(child2);
                 box->children.push_back(child3);
@@ -133,6 +135,7 @@ public:
                 box->children.push_back(child6);
                 box->children.push_back(child7);
 
+                new_unfinished.push_back(child0);
                 new_unfinished.push_back(child1);
                 new_unfinished.push_back(child2);
                 new_unfinished.push_back(child3);
