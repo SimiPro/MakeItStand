@@ -43,7 +43,7 @@ typedef vector<vector<Box>> VII;
 typedef vector<Box> VI;
 
 class Voxalization {
-    MatrixXd &V;
+    const MatrixXd &V;
     MatrixXi &F;
     RowVector3d &com;
     int resolution;
@@ -176,7 +176,7 @@ public:
                     box_id_to_grid_id.push_back({x,y,z}); filled_boxes++;
                     int v_start = v_counter;
                     RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
-                    addBoxPoints(tmpV, v_counter, v0);
+                   // addBoxPoints(tmpV, v_counter, v0);
                     MatrixXi currFace; currFace.resize(12, 3);
                     int vs = 0;
                     addFaces(currFace, vs, v_start);
@@ -192,15 +192,15 @@ public:
 
     }
 
-    void addBoxPoints(MatrixXd &tmpV, int &v_counter, const RowVector3d &v0) {
+    void addBoxPoints(MatrixXd &tmpV, int &v_counter, const RowVector3d &v0, const Box* box) {
         tmpV.row(v_counter++) = v0; // 0
-        tmpV.row(v_counter++) = v0 + RowVector3d(dx, 0, 0); // 1
-        tmpV.row(v_counter++) = v0 + RowVector3d(0, dy, 0); // 2
-        tmpV.row(v_counter++) = v0 + RowVector3d(dx, dy, 0); // 3
-        tmpV.row(v_counter++) = v0 + RowVector3d(dx, 0, dz); // 4
-        tmpV.row(v_counter++) = v0 + RowVector3d(dx, dy, dz); // 5
-        tmpV.row(v_counter++) = v0 + RowVector3d(0, 0, dz); // 6
-        tmpV.row(v_counter++) = v0 + RowVector3d(0, dy, dz); // 7
+        tmpV.row(v_counter++) = v0 + RowVector3d(box->dx, 0, 0); // 1
+        tmpV.row(v_counter++) = v0 + RowVector3d(0, box->dy, 0); // 2
+        tmpV.row(v_counter++) = v0 + RowVector3d(box->dx, box->dy, 0); // 3
+        tmpV.row(v_counter++) = v0 + RowVector3d(box->dx, 0, box->dz); // 4
+        tmpV.row(v_counter++) = v0 + RowVector3d(box->dx, box->dy, box->dz); // 5
+        tmpV.row(v_counter++) = v0 + RowVector3d(0, 0, box->dz); // 6
+        tmpV.row(v_counter++) = v0 + RowVector3d(0, box->dy, box->dz); // 7
     }
 
 
@@ -242,11 +242,11 @@ public:
         int filled_boxes = 0;
         for (int i = 0; i < boxes.size(); i++) {
             Box *box = boxes[i];
-            if (box->sdf >= 0 || !box->filled) continue; 
+            if (box->sdf > 0 || !box->filled) continue; 
             filled_boxes++;
             int v_start = v_counter;
             RowVector3d bottomLeft = box->center - Vector3d(box->dx/2, box->dy/2, box->dz/2);
-            addBoxPoints(tmpV, v_counter, bottomLeft);
+            addBoxPoints(tmpV, v_counter, bottomLeft,  box);
             addFaces(tmpF, f_counter, v_start);
         }
 
