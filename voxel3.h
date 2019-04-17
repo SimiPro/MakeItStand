@@ -51,7 +51,7 @@ class Voxalization {
     Vector3d M;
     Grid grid;
     double dx, dy, dz;
-    vector<Tripletz> box_id_to_grid_id; 
+    vector<int> box_id_to_grid_id; 
     int max_depth;
     int num_boxes;
     vector<Box*> boxes;
@@ -154,37 +154,35 @@ public:
 
     void empty_box(int id) {
         assert(id < box_id_to_grid_id.size() && id >= 0);
-        Tripletz trip = box_id_to_grid_id[id];
-        grid[trip.x][trip.y][trip.z].filled = false;
-
+        int global_id = box_id_to_grid_id[id];
+        Box *box = boxes[global_id];
+        box->filled = false;
     }
 
 
     void get_interior_mesh(Eigen::MatrixXd &new_V, vector<MatrixXi> &faces) {
         MatrixXd tmpV;
-        tmpV.resize(num_boxes*8, 3);
+        tmpV.resize(boxes.size()*8, 3);
 
         int v_counter = 0;
         std::cout << "triangulation progress: " << endl;
+
         int filled_boxes = 0;
-        for (int x = 0; x < resolution; x++) {
-            for (int y = 0; y < resolution; y++) {
-                for (int z = 0; z < resolution; z++) {
-                    if (grid[x][y][z].sdf >= 0 || !grid[x][y][z].filled) continue;
-                    if (grid[x][y][z].is_boundary) continue;
-
-                    box_id_to_grid_id.push_back({x,y,z}); filled_boxes++;
-                    int v_start = v_counter;
-                    RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
-                   // addBoxPoints(tmpV, v_counter, v0);
-                    MatrixXi currFace; currFace.resize(12, 3);
-                    int vs = 0;
-                    addFaces(currFace, vs, v_start);
-
-                    faces.push_back(currFace);
-                }
-            }
+        for (int i = 0; i < boxes.size(); i++) {
+            Box *box = boxes[i];
+            if (box->sdf > 0 || !box->filled) continue;
+            if (box->is_boundary) continue;
+            box_id_to_grid_id.push_back(i); 
+            filled_boxes++;
+            int v_start = v_counter;
+            RowVector3d bottomLeft = box->center - Vector3d(box->dx/2, box->dy/2, box->dz/2);
+            addBoxPoints(tmpV, v_counter, bottomLeft, box);
+            MatrixXi currFace; currFace.resize(12, 3);
+            int vs = 0;
+            addFaces(currFace, vs, v_start);
+            faces.push_back(currFace);
         }
+
 
         new_V = tmpV.block(0,0, v_counter, 3);
 

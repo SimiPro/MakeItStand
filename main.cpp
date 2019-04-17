@@ -15,7 +15,7 @@
 #include <igl/copyleft/cgal/intersect_with_half_space.h>
 #include <igl/signed_distance.h>
 
-#include "voxel2.h"
+#include "voxel3.h"
 #include "mass_props.h"
 #include "optim.h"
 
@@ -56,12 +56,7 @@ bool gravity_is_set = false;
 //Eigen::Vector3d gravity_to;
 
 int resolution = 20;
-
-int num_handles = 5;
-vector<Eigen::Vector3d> handles;
-vector<bool> used_handles(num_handles, false);
-deque<bool> set_handles(num_handles, false);
-vector<Eigen::Vector3d> p_handles;
+int voxel_max_depth = 3;
 
 bool set_gravity = false;
 
@@ -97,6 +92,8 @@ bool pre_draw(Viewer& viewer) {
     if (cleared) {
         cleared = false;
 
+        viewer.data().add_points(Eigen::RowVector3d(0,0,0), Eigen::RowVector3d(0,1,0));
+
         if (has_plane) {    
             viewer.selected_data_index = 0;
             viewer.data().set_mesh(planeV, planeF);
@@ -115,11 +112,6 @@ bool pre_draw(Viewer& viewer) {
         update_com();
         viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
 
-
-        for (int i = 0; i < used_handles.size(); i++) {
-            if (used_handles[i])
-                viewer.data().add_points(p_handles[i], Eigen::RowVector3d(1, 0, 0));
-        }
 
     	if (gravity_is_set) {
                 Eigen::RowVector3d temp = com + 100 * gravity;
@@ -185,25 +177,6 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
     mouse_down_x = viewer.current_mouse_x;
     mouse_down_y = viewer.core.viewport(3) - viewer.current_mouse_y;
 
-    for (int i =0; i < num_handles; i++) {
-        if (!set_handles[i]) continue;
-        set_handles[i] = false;
-        int fid;
-        Eigen::Vector3f baryC;
-        // Cast a ray in the view direction starting from the mouse position
-        double x = viewer.current_mouse_x;
-        double y = viewer.core.viewport(3) - viewer.current_mouse_y;
-        if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core.view,
-            viewer.core.proj, viewer.core.viewport, V, F, fid, baryC)) {
-
-            // max bary coords, get nearearst vertex
-            long c; baryC.maxCoeff(&c);
-            Eigen::RowVector3d nn_c = V.row(F(fid,c));
-            used_handles[i] = true;
-            p_handles[i] = nn_c;
-        }
-        return true;
-    }
 
 
     if (set_balance_spot) {
@@ -292,7 +265,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         F = FC;
         //viewer.data().set_mesh(VC, FC);
     } else if (key == '3') {
-        Voxalization voxal(V, F, resolution , com);
+        Voxalization voxal(V, F, resolution , com, voxel_max_depth);
         MatrixXd new_V; 
         MatrixXi new_F;
         MatrixXd new_N;
@@ -344,7 +317,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         props(V, F, 0.1, s10all);
 
         // voxalization of mesh
-        Voxalization voxal(V, F, resolution , com);
+        Voxalization voxal(V, F, resolution , com, voxel_max_depth);
 
         // get interior mesh
         vector<MatrixXi> boxes; MatrixXd new_V; vector<VectorXd> b_s10;
@@ -379,6 +352,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         VectorXd s10; 
         props(new_V, new_F, 0.1,  s10);
         cout << "s10:" << endl;
+        cout << s10 << endl;
         RowVector3d vCom = getCoM(s10).transpose();
         viewer.data().add_points(vCom, Eigen::RowVector3d(0, 0, 1));
         cout << "com: " << endl;
@@ -499,6 +473,8 @@ int main(int argc, char *argv[]) {
         }
 
         ImGui::InputInt("Resolution", &resolution);
+        ImGui::InputInt("Octree depth", &voxel_max_depth); 
+
 
 	//gravity
         ImGui::SliderFloat("Gravity angle in xy-plane", &gra_xy, -180.f, 180.f);
@@ -531,18 +507,6 @@ int main(int argc, char *argv[]) {
         //ImGui::InputDouble("Gravity x", &gravity[0], 0., 0);
         //ImGui::InputDouble("Gravity y", &gravity[1], 0., 0);
         //ImGui::InputDouble("Gravity z", &gravity[2], 0., 0);
-
-
-
-
-        for (int i = 0; i < num_handles; i++) {
-            p_handles.push_back({0,0,0});      
-        }
-
-        for (int i = 0; i < used_handles.size(); i++) {
-            ImGui::Checkbox("Set Handle", &(set_handles[i]));
-            ImGui::InputDouble("Z-depth", &p_handles[i][2], 0, 0);
-        }
 
 
         ImGui::End();
