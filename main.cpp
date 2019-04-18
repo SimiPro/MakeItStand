@@ -275,7 +275,6 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         clear(viewer);
         cleared =  false;
         viewer.data().set_mesh(new_V, new_F);
-        
         viewer.data().set_normals(new_N);
 
         VectorXd s10; 
