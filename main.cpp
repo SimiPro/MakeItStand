@@ -42,6 +42,11 @@ Eigen::MatrixXd N;
 Eigen::MatrixXi F;
 Eigen::MatrixXd FN;
 
+// Voxalization
+MatrixXd new_V; 
+MatrixXi new_F;
+MatrixXd new_N;
+
 Eigen::MatrixXd planeV;
 Eigen::MatrixXd planeFN;
 Eigen::MatrixXi planeF;
@@ -57,6 +62,7 @@ bool gravity_is_set = false;
 
 int resolution = 20;
 int voxel_max_depth = 3;
+double eps_to_boundary = 0.1;
 
 bool set_gravity = false;
 
@@ -265,10 +271,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         F = FC;
         //viewer.data().set_mesh(VC, FC);
     } else if (key == '3') {
-        Voxalization voxal(V, F, resolution , com, voxel_max_depth);
-        MatrixXd new_V; 
-        MatrixXi new_F;
-        MatrixXd new_N;
+        Voxalization voxal(V, F, resolution, voxel_max_depth, eps_to_boundary);
         // just display voxelization
         voxal.triangulate(new_V, new_F);
         igl::per_face_normals(new_V, new_F, new_N);
@@ -276,6 +279,9 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         cleared =  false;
         viewer.data().set_mesh(new_V, new_F);
         viewer.data().set_normals(new_N);
+
+        viewer.append_mesh();
+        viewer.data().set_mesh(V, F);
 
         VectorXd s10; 
         props(new_V, new_F, 0.1,  s10);
@@ -316,10 +322,10 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         props(V, F, 0.1, s10all);
 
         // voxalization of mesh
-        Voxalization voxal(V, F, resolution , com, voxel_max_depth);
+        Voxalization voxal(V, F, resolution, voxel_max_depth, eps_to_boundary);
 
         // get interior mesh
-        vector<MatrixXi> boxes; MatrixXd new_V; vector<VectorXd> b_s10;
+        vector<MatrixXi> boxes; vector<VectorXd> b_s10;
         voxal.get_interior_mesh(new_V, boxes);
 
         // calculate mass proprties of each box of the interior mesh
@@ -342,7 +348,6 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         }
 
         // triangulate mesh
-        MatrixXi new_F;
         voxal.triangulate(new_V, new_F);
         clear(viewer);
         cleared =  false;
@@ -356,7 +361,6 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         viewer.data().add_points(vCom, Eigen::RowVector3d(0, 0, 1));
         cout << "com: " << endl;
         cout << vCom << endl;
-
     }
 }
 
@@ -423,7 +427,16 @@ int main(int argc, char *argv[]) {
         igl::readOFF("../data/sphere.off",V,F,N);
     } else {
         // Read points and normals
-        igl::readOFF(argv[1],V,F,N);
+        string filename(argv[1]);
+        if (filename.find(".obj") == string::npos) {
+            igl::readOFF(filename, V, F, N);
+        } else {
+            MatrixXd TC;
+            MatrixXi FTC;
+            igl::readOBJ(filename,V, TC, N, F, FTC, FN);    
+        }
+
+        
     }
 
     // SIMPLE BOX
@@ -473,6 +486,8 @@ int main(int argc, char *argv[]) {
 
         ImGui::InputInt("Resolution", &resolution);
         ImGui::InputInt("Octree depth", &voxel_max_depth); 
+        ImGui::InputDouble("Eps voxel vs boundary", &eps_to_boundary); 
+
 
 
 	//gravity
