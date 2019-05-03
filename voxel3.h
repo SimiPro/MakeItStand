@@ -37,29 +37,22 @@ struct Box {
     
 };
 
-
-typedef vector<vector<vector<Box > > > Grid;
-typedef vector<vector<Box>> VII;
-typedef vector<Box> VI;
-
 class Voxalization {
     const MatrixXd &V;
     MatrixXi &F;
-    RowVector3d &com;
     int resolution;
     Vector3d m;
     Vector3d M;
-    Grid grid;
     double dx, dy, dz;
     vector<int> box_id_to_grid_id; 
     int max_depth;
     int num_boxes;
     vector<Box*> boxes;
-
+    double eps_to_boundary;
 
 public:
-    Voxalization(MatrixXd &V_, MatrixXi &F_, int resolution_, RowVector3d &com_, int max_depth_): V(V_), F(F_), resolution(resolution_),
-                com(com_), max_depth(max_depth_), num_boxes(0) {
+    Voxalization(MatrixXd &V_, MatrixXi &F_, int resolution_, int max_depth_, double eps_to_boundary_): V(V_), F(F_), resolution(resolution_),
+                eps_to_boundary(eps_to_boundary_), max_depth(max_depth_), num_boxes(0) {
 
         // BOUNDING BOX
         m = V.colwise().minCoeff();
@@ -68,8 +61,6 @@ public:
         dx = (M(0) - m(0)) / resolution;
         dy = (M(1) - m(1)) / resolution;
         dz = (M(2) - m(2)) / resolution;
-
-        grid = Grid(resolution_, VII(resolution_, VI(resolution_, {true, 0, false, dx, dy, dz})));
         
         // BUILD QUERY POINTS
         vector<Box*> unfinished;
@@ -77,9 +68,10 @@ public:
         for (int x = 0; x < resolution; x++) {
             for (int y = 0; y < resolution; y++) {
                 for (int z = 0; z < resolution; z++) {
-                    Vector3d box_center(m(0) + (x + 0.5)*dx, m(1) + (y + 0.5)*dy, m(2) + (z + 0.5)*dz);            
-                    grid[x][y][z].center = box_center;
-                    unfinished.push_back(&(grid[x][y][z]));
+                    Vector3d box_center(m(0) + (x + 0.5)*dx, m(1) + (y + 0.5)*dy, m(2) + (z + 0.5)*dz);  
+                    Box* box = new Box(true, 0, false, dx, dy, dz);
+                    box->center = box_center;          
+                    unfinished.push_back(box);
                     num_boxes++;
                 }
             }
@@ -87,8 +79,11 @@ public:
         // 
         build_child_boxes(unfinished);
 
-        cout << "Built voxalization with: " << boxes.size() << " boxes" << endl;
+        for (int i = 0; i < boxes.size(); i++) {
+            boxes[i]->filled = boxes[i]->sdf < -eps_to_boundary;
+        }
 
+        cout << "Built voxalization with: " << boxes.size() << " boxes" << endl;
     }
 
     void build_child_boxes(const vector<Box*> &unfinished) {
@@ -114,8 +109,15 @@ public:
         for (int i = 0; i < unfinished.size(); i++) {
             Box* box = unfinished[i];
             box->sdf = S[i];
-            box->is_boundary = pow(box->sdf,2) <= 2*pow(box->dx/2, 2) + pow(box->dy/2, 2) + pow(box->dz/2, 2);
-            if (box->is_boundary && box->depth < max_depth) {
+            // this would be real boundary! pow(box->sdf,2) <= 2*(pow(box->dx/2, 2) + pow(box->dy/2, 2) + pow(box->dz/2, 2));
+            bool center_in_figure = box->sdf < 0;
+            bool cube_cuts_figure = pow(box->sdf, 2) <= 2*(pow(box->dx/2, 2) + pow(box->dy/2, 2) + pow(box->dz/2, 2));
+            bool cube_whole_in_figure = center_in_figure && !cube_cuts_figure;
+
+            box->is_boundary = center_in_figure && cube_cuts_figure;
+
+            // center + pow()
+            if (cube_cuts_figure && box->depth < max_depth) {
                 // remove the "parent" and replace it with 8 children
                 Box *child0 = new Box(box, -1,-1,-1);
                 Box *child1 = new Box(box, -1,-1,1);
@@ -170,7 +172,7 @@ public:
         int filled_boxes = 0;
         for (int i = 0; i < boxes.size(); i++) {
             Box *box = boxes[i];
-            if (box->sdf > 0 || !box->filled) continue;
+            if (!box->filled) continue;
             if (box->is_boundary) continue;
             box_id_to_grid_id.push_back(i); 
             filled_boxes++;
@@ -240,7 +242,7 @@ public:
         int filled_boxes = 0;
         for (int i = 0; i < boxes.size(); i++) {
             Box *box = boxes[i];
-            if (box->sdf > 0 || !box->filled) continue; 
+            if (!box->filled) continue; 
             filled_boxes++;
             int v_start = v_counter;
             RowVector3d bottomLeft = box->center - Vector3d(box->dx/2, box->dy/2, box->dz/2);
