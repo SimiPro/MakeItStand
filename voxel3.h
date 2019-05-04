@@ -1,4 +1,5 @@
 #include <vector>
+#include <fstream>
 
 using namespace std;
 using namespace Eigen;
@@ -25,12 +26,11 @@ struct Box {
         emptied(false) {}
 
     Box(Box* parent, int d1, int d2, int d3) : is_boundary(false), depth(parent->depth + 1), 
-        sdf(0), filled(true) {
+        sdf(0), filled(true), emptied(false) {
         assert((d1 == -1 || d1 == 1) && (d2 == -1 || d2 == 1) || (d3 == -1 || d3 == 1));
         // set child box on half of the parent and make center depending on d1, d2 ,d3
         dx = parent->dx/2, dy = parent->dy/2, dz = parent->dz/2;
         center = parent->center + Vector3d(d1*dx/2, d2*dy/2, d3*dz/2);
-        
     }
     
 };
@@ -47,6 +47,7 @@ class Voxalization {
     int num_boxes;
     vector<Box*> boxes;
     double eps_to_boundary;
+    vector<Box*> first_layer;
 
 public:
     Voxalization(MatrixXd &V_, MatrixXi &F_, int resolution_, int max_depth_, double eps_to_boundary_): V(V_), F(F_), resolution(resolution_),
@@ -303,6 +304,39 @@ public:
 
         new_V = tmpV.block(0,0, v_counter, 3);
         new_F = tmpF.block(0,0, f_counter, 3);
+    }
+
+
+    bool writeCAD(const MatrixXd &V, const MatrixXi &F) {
+        igl::writeOFF("source.off", V, F);
+
+        const string fname("all.scad");
+        ofstream s(fname);
+        if(!s.is_open()) {
+            fprintf(stderr,"IOError: writeCAD() could not open %s\n",fname.c_str());
+            return false;
+        }
+
+        s << "// This file should first load an off file which should be the source figure";
+        s << "Then we make a union of all cubes that are gonna be empty and subtract that\n\n";
+
+        s << "difference() {\n";
+        s << "import(\"/home/simi/projects/mk2/MakeItStand/build/source.off\", convexity=10);\n";
+
+        s << "union() {\n";
+        double EPS = 1e-6;
+        for (Box* box : boxes) {
+            if (!box->filled || !box->emptied) {
+                s << "translate([" << box->center[0] << "," << box->center[1] << "," << box->center[2] << "]) {\n";
+                s << "\tcube([" << box->dx + EPS << "," << box->dy + EPS << "," << box->dz + EPS << "], center=true); \n";
+                s << "}\n";
+            } 
+        }
+
+
+        s << "}\n";
+        s << "}\n";
+
     }
 
     void optimize() {

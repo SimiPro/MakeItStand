@@ -347,19 +347,21 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
             }
         }
 
+        voxal.triangulate(new_V, new_F);
+
         // triangulate mesh
         MatrixXd emptyV;
         MatrixXi emptyF;
         voxal.triangulate_empty(emptyV, emptyF);
+        igl::writeOFF("empty_mesh.off", emptyV, emptyF);
         clear(viewer);
         cleared =  false;
-        viewer.data().set_mesh(emptyV, emptyF);
+        viewer.data().set_mesh(new_V, new_F);
 
         viewer.append_mesh();
         viewer.data().set_mesh(V, F);
 
-        igl::writeOFF("empty_boxes.off", emptyV, emptyF);
-
+        voxal.writeCAD(V, F);
 
         VectorXd s10; 
         props(emptyV, emptyF, 0.1,  s10);
