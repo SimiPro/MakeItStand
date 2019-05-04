@@ -18,17 +18,15 @@ struct Box {
     int depth; 
     Vector3d center;
     vector<Box*> children; 
+    bool emptied;
 
     Box(bool filled_, double sdf_, bool is_boundary_, double dx_, double dy_, double dz_): 
-        filled(filled_), sdf(sdf_), is_boundary(is_boundary_), dx(dx_), dy(dy_), dz(dz_), depth(0) {}
+        filled(filled_), sdf(sdf_), is_boundary(is_boundary_), dx(dx_), dy(dy_), dz(dz_), depth(0),
+        emptied(false) {}
 
-    Box(Box* parent, int d1, int d2, int d3) {
+    Box(Box* parent, int d1, int d2, int d3) : is_boundary(false), depth(parent->depth + 1), 
+        sdf(0), filled(true) {
         assert((d1 == -1 || d1 == 1) && (d2 == -1 || d2 == 1) || (d3 == -1 || d3 == 1));
-        filled = true;
-        sdf = 0;
-        is_boundary = false;
-        depth = parent->depth + 1;
-
         // set child box on half of the parent and make center depending on d1, d2 ,d3
         dx = parent->dx/2, dy = parent->dy/2, dz = parent->dz/2;
         center = parent->center + Vector3d(d1*dx/2, d2*dy/2, d3*dz/2);
@@ -158,7 +156,7 @@ public:
         assert(id < box_id_to_grid_id.size() && id >= 0);
         int global_id = box_id_to_grid_id[id];
         Box *box = boxes[global_id];
-        box->filled = false;
+        box->emptied = true;
     }
 
 
@@ -173,7 +171,6 @@ public:
         for (int i = 0; i < boxes.size(); i++) {
             Box *box = boxes[i];
             if (!box->filled) continue;
-            if (box->is_boundary) continue;
             box_id_to_grid_id.push_back(i); 
             filled_boxes++;
             int v_start = v_counter;
@@ -242,7 +239,7 @@ public:
         int filled_boxes = 0;
         for (int i = 0; i < boxes.size(); i++) {
             Box *box = boxes[i];
-            if (!box->filled) continue; 
+            if (!box->filled || box->emptied) continue; 
             filled_boxes++;
             int v_start = v_counter;
             RowVector3d bottomLeft = box->center - Vector3d(box->dx/2, box->dy/2, box->dz/2);
@@ -263,6 +260,45 @@ public:
             }
         }*/
         std::cout << "triangulation process finished with : " << filled_boxes << " filled boxes" << std::endl;
+
+
+        new_V = tmpV.block(0,0, v_counter, 3);
+        new_F = tmpF.block(0,0, f_counter, 3);
+    }
+
+    void triangulate_empty(Eigen::MatrixXd &new_V, Eigen::MatrixXi &new_F) {
+        MatrixXd tmpV;
+        MatrixXi tmpF;
+        tmpV.resize(boxes.size()*8, 3);
+        tmpF.resize(boxes.size()*12, 3);
+        
+        std::cout << "triangulation empty cubes: " << endl;
+
+        int v_counter = 0, f_counter = 0;
+        int empty_boxes = 0;
+        for (int i = 0; i < boxes.size(); i++) {
+            Box *box = boxes[i];
+            if (!box->filled || !box->emptied) continue; 
+            empty_boxes++;
+            int v_start = v_counter;
+            RowVector3d bottomLeft = box->center - Vector3d(box->dx/2, box->dy/2, box->dz/2);
+            addBoxPoints(tmpV, v_counter, bottomLeft,  box);
+            addFaces(tmpF, f_counter, v_start);
+        }
+
+        /*for (int x = 0; x < resolution; x++) {
+            for (int y = 0; y < resolution; y++) {
+                for (int z = 0; z < resolution; z++) {
+                    if (grid[x][y][z].sdf >= 0 || !grid[x][y][z].filled) continue; 
+                    filled_boxes++;
+
+                    int v_start = v_counter;
+                    RowVector3d v0(m(0) + x*dx, m(1) + y*dy, m(2) + z*dz);
+                    
+                }
+            }
+        }*/
+        std::cout << "triangulation process finished with : " << empty_boxes << " empty boxes" << std::endl;
 
 
         new_V = tmpV.block(0,0, v_counter, 3);

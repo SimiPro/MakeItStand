@@ -348,20 +348,28 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         }
 
         // triangulate mesh
-        voxal.triangulate(new_V, new_F);
+        MatrixXd emptyV;
+        MatrixXi emptyF;
+        voxal.triangulate_empty(emptyV, emptyF);
         clear(viewer);
         cleared =  false;
-        viewer.data().set_mesh(new_V, new_F);
+        viewer.data().set_mesh(emptyV, emptyF);
+
+        viewer.append_mesh();
+        viewer.data().set_mesh(V, F);
+
+        igl::writeOFF("empty_boxes.off", emptyV, emptyF);
+
 
         VectorXd s10; 
-        props(new_V, new_F, 0.1,  s10);
-        cout << "s10:" << endl;
-        cout << s10 << endl;
-        RowVector3d vCom = getCoM(s10).transpose();
+        props(emptyV, emptyF, 0.1,  s10);
+        RowVector3d vCom = getCoM(s10all - s10).transpose();
         viewer.data().add_points(vCom, Eigen::RowVector3d(0, 0, 1));
         cout << "com: " << endl;
         cout << vCom << endl;
-    }
+    } else if (key == '9') {
+        igl::writeOFF("saved_file.off", V, F);
+    } 
 }
 
 
@@ -387,6 +395,8 @@ void setBoudingBox() {
         cout << V_box << endl;
         cout << "End Mesh bounding box" << endl;
     }
+
+    eps_to_boundary = abs((M - m).maxCoeff())*0.01;
 }
 
 void update_gravity() {
@@ -452,6 +462,7 @@ int main(int argc, char *argv[]) {
 
     V_box.resize(8,3); V_box.setZero();     
     setBoudingBox();
+
 
     // init viewer
     Viewer viewer;
