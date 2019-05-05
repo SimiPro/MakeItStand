@@ -78,10 +78,6 @@ public:
         // 
         build_child_boxes(unfinished);
 
-        for (int i = 0; i < boxes.size(); i++) {
-            boxes[i]->filled = boxes[i]->sdf <= -eps_to_boundary;
-        }
-
         cout << "Built voxalization with: " << boxes.size() << " boxes" << endl;
     }
 
@@ -112,7 +108,7 @@ public:
             bool center_in_figure = box->sdf < 0;
             bool cube_cuts_figure = pow(box->sdf, 2) <= pow(box->dx/2, 2) + pow(box->dy/2, 2) + pow(box->dz/2, 2) + eps_to_boundary;
             bool cube_whole_in_figure = center_in_figure && !cube_cuts_figure;
-
+            box->filled = center_in_figure && !cube_cuts_figure;
             box->is_boundary = center_in_figure && cube_cuts_figure;
 
             // center + pow()

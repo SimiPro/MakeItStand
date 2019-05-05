@@ -2,11 +2,11 @@
 #include <CGAL/QP_functions.h>
 
 // choose exact integral type
-//#include <CGAL/Gmpzf.h>
-//typedef CGAL::Gmpzf ET;
+#include <CGAL/Gmpzf.h>
+typedef CGAL::Gmpzf ET;
 //#else
-#include <CGAL/MP_Float.h>
-typedef CGAL::MP_Float ET;
+//#include <CGAL/MP_Float.h>
+//typedef CGAL::MP_Float ET;
 //#endif
 //#include <CGAL/Gmpq.h>
 //typedef CGAL::Gmpq ET;
@@ -15,6 +15,8 @@ typedef CGAL::MP_Float ET;
 
 typedef CGAL::Quadratic_program<ET> Program;
 typedef CGAL::Quadratic_program_solution<ET> Solution;
+
+bool DEBUG_OPTIM = false;
 
 // round up to next integer double
 double ceil_to_double(const CGAL::Quotient<ET>& x) {
@@ -26,6 +28,8 @@ double ceil_to_double(const CGAL::Quotient<ET>& x) {
 
 double EPS = 0.1;
 
+// s10_all - s10_empty = 0 => s10_all = s10_empty
+
 // optimize boxes
 // beta[i] = 1 empty box
 // beta[i] = 0 fill box
@@ -35,11 +39,11 @@ void optim(const VectorXd &b_s10_all, const vector<VectorXd> &b_s10_interior, Ve
     betas.resize(b_s10_interior.size()); betas.setZero();
 
     // 0 <= betas <= 1
-    Program lp (CGAL::EQUAL, true, 0, true, 1);
+    Program lp (CGAL::EQUAL, true, 0.0, true, 1.0);
 
     // min sy'.betas
     for (int i = 0; i < b_s10_interior.size(); i++) {
-        lp.set_c(i, -b_s10_interior[i][2]); // b_s10[i][2] = sy
+        lp.set_c(i, -(b_s10_interior[i][2]*b_s10_interior[i][2])); // b_s10[i][2] = sy
     }
     lp.set_c0(b_s10_all[2]);
 
@@ -48,13 +52,19 @@ void optim(const VectorXd &b_s10_all, const vector<VectorXd> &b_s10_interior, Ve
     int SZ = 1;
     for (int i = 0; i < b_s10_interior.size(); i++) {
         lp.set_a(i, SX, b_s10_interior[i][1]); // b_s10_interior[i][1] = sx'
-        lp.set_a(i, SZ, b_s10_interior[i][3]); // b_s10_interior[i][1] = sz'
+        lp.set_a(i, SZ, b_s10_interior[i][3]); // b_s10_interior[i][3] = sz'
     }
     lp.set_b(SX, b_s10_all[1]);
     lp.set_b(SZ, b_s10_all[3]);
 
     Solution s = CGAL::solve_linear_program(lp, ET());
     assert (s.solves_linear_program(lp));
+    cout << "LP Solution: " << endl;
+    cout << s << endl;
+
+    if (s.is_infeasible()) {
+        cout << "Attention! Deform the mesh! LP has no solution" << endl;
+    }
 
     //cout <<  ceil_to_double(s.objective_value()) << endl;
    // cout << "objective value: " << s.objective_value() << endl;
@@ -66,6 +76,8 @@ void optim(const VectorXd &b_s10_all, const vector<VectorXd> &b_s10_interior, Ve
     int empty_counter = 0;
     int non_empty_counter = 0;
     for (; it != end; ++it) {
+        if (DEBUG_OPTIM)
+            cout << "var: " << counter << " | " << CGAL::to_double(*it) << " ";
         double val = ceil_to_double(*it);
         //cout << "var: " << counter << " " << val << endl;
         if (val < EPS) { // fill this shizzl
