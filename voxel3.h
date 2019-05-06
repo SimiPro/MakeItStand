@@ -320,9 +320,9 @@ public:
         s << "import(\"/home/simi/projects/mk2/MakeItStand/build/source.off\", convexity=10);\n";
 
         s << "union() {\n";
-        double EPS = 1e-6;
+        double EPS = 1e-5;
         for (Box* box : boxes) {
-            if (!box->filled || !box->emptied) {
+            if (box->emptied) {
                 s << "translate([" << box->center[0] << "," << box->center[1] << "," << box->center[2] << "]) {\n";
                 s << "\tcube([" << box->dx + EPS << "," << box->dy + EPS << "," << box->dz + EPS << "], center=true); \n";
                 s << "}\n";
