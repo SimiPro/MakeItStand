@@ -320,7 +320,7 @@ public:
         s << "import(\"/home/simi/projects/mk2/MakeItStand/build/source.off\", convexity=10);\n";
 
         s << "union() {\n";
-        double EPS = 1e-5;
+        double EPS = 1e-3;
         for (Box* box : boxes) {
             if (box->emptied) {
                 s << "translate([" << box->center[0] << "," << box->center[1] << "," << box->center[2] << "]) {\n";
