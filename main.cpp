@@ -73,6 +73,9 @@ bool set_balance_spot = false;
 
 float y_move_balance_spot = 0.;
 float rotate_balancing_spot = 0.;
+float move_bp_x = 0.;
+float move_bp_y = 0.;
+float move_bp_z = 0.;
 
 // bounding box needed for some displaying stuff
 Eigen::MatrixXd V_box;
@@ -523,6 +526,20 @@ int main(int argc, char *argv[]) {
         }
         if (ImGui::Button("rotate model to align gravity", ImVec2(-1,0))) {
             align_gravity();
+            //update_viewer(viewer);
+            clear(viewer);
+        }
+
+		ImGui::SliderFloat("move balancing point in x direction", &move_bp_x, -10.f, 10.f);
+        
+		ImGui::SliderFloat("move balancing point in y direction", &move_bp_y, -10.f, 10.f);
+
+		ImGui::SliderFloat("move balancing point in z direction", &move_bp_z, -10.f, 10.f);
+        
+		if (ImGui::Button("move balancing point", ImVec2(-1,0))) {
+
+			V = V.rowwise() - Eigen::RowVector3d(move_bp_x, move_bp_y, move_bp_z);
+         
             //update_viewer(viewer);
             clear(viewer);
         }
