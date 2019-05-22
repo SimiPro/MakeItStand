@@ -14,6 +14,7 @@
 #include <igl/centroid.h>
 #include <igl/copyleft/cgal/intersect_with_half_space.h>
 #include <igl/signed_distance.h>
+#include <igl/copyleft/cgal/convex_hull.h>
 
 #include "voxel3.h"
 #include "mass_props.h"
@@ -272,6 +273,31 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         clear(viewer);
         V = VC;
         F = FC;
+
+        // calculate support polygon
+        // Inputs:
+        MatrixXd floorV; floorV.resize(0,3);
+        for (int i = 0; i < V.rows(); i++) {
+            if (V.row(i)[1] == 0) {
+                floorV.conservativeResize(floorV.rows() + 1, 3);
+                floorV.row(floorV.rows() -1) = V.row(i);
+            }
+        }
+
+        MatrixXi floorF;
+        igl::copyleft::cgal::convex_hull(floorV, floorF);
+        viewer.append_mesh();
+        viewer.data().set_mesh(floorV, floorF);
+
+        MatrixXd floorC; floorC.resize(floorF.rows(), 3);
+        for (int k = 0; k < floorF.rows(); k++) {
+            floorC.row(k) = RowVector3d(1, 0,0);    
+        }
+        viewer.data().set_colors(floorC);
+
+
+        
+
         //viewer.data().set_mesh(VC, FC);
     } else if (key == '3') {
         Voxalization voxal(V, F, resolution, voxel_max_depth, eps_to_boundary);
@@ -530,11 +556,11 @@ int main(int argc, char *argv[]) {
             clear(viewer);
         }
 
-		ImGui::SliderFloat("move balancing point in x direction", &move_bp_x, -10.f, 10.f);
+		ImGui::InputFloat("move balancing point in x direction", &move_bp_x);
         
-		ImGui::SliderFloat("move balancing point in y direction", &move_bp_y, -10.f, 10.f);
+		ImGui::InputFloat("move balancing point in y direction", &move_bp_y);
 
-		ImGui::SliderFloat("move balancing point in z direction", &move_bp_z, -10.f, 10.f);
+		ImGui::InputFloat("move balancing point in z direction", &move_bp_z);
         
 		if (ImGui::Button("move balancing point", ImVec2(-1,0))) {
 
