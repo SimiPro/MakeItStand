@@ -28,9 +28,6 @@ using namespace Eigen;
 
 typedef igl::opengl::glfw::Viewer Viewer;
 
-
-
-
 //before rotation and cut
 Eigen::MatrixXd V_original;
 //before cut
@@ -38,28 +35,29 @@ Eigen::MatrixXd V_base;
 Eigen::MatrixXd FN_base;
 Eigen::MatrixXi F_base;
 
-Eigen::MatrixXd V;
+Eigen::MatrixXd V(0,3);
 Eigen::MatrixXd N;
-Eigen::MatrixXi F;
+Eigen::MatrixXi F(0,3);
 Eigen::MatrixXd FN;
 
 // Voxalization
-MatrixXd new_V; 
-MatrixXi new_F;
-MatrixXd new_N;
+MatrixXd voxel_V(0, 3); 
+MatrixXi voxel_F(0, 3);
+MatrixXd voxel_N;
 
-Eigen::MatrixXd planeV;
+// Empty cubes
+MatrixXd emptyV(0, 3);
+MatrixXi emptyF(0, 3);
+
+Eigen::MatrixXd planeV(0, 3);
 Eigen::MatrixXd planeFN;
-Eigen::MatrixXi planeF;
+Eigen::MatrixXi planeF(0, 3);
 
 Eigen::RowVector3d com;
 Eigen::RowVector3d gravity;
 float gra_xy, gra_xz;
 bool gravity_is_set = false;
 
-//Eigen::Vector3d gravity;
-//Eigen::Vector3d gravity_from; 
-//Eigen::Vector3d gravity_to;
 
 int resolution = 20;
 int voxel_max_depth = 3;
@@ -81,12 +79,15 @@ float move_bp_z = 0.;
 // bounding box needed for some displaying stuff
 Eigen::MatrixXd V_box;
 
-double mouse_down_x;
-double mouse_down_y;
-
 void update_com() {
     Eigen::VectorXd s10;
     props(V, F, 0.1,  s10);
+
+    if (emptyV.rows() > 0) {
+        VectorXd s10Empty;
+        props(emptyV, emptyF, 0.1, s10Empty);
+        s10 -= s10Empty;        
+    }
     com = getCoM(s10).transpose();
 }
 
@@ -99,7 +100,28 @@ void closest_point(const Eigen::RowVector3d p, Eigen::RowVector3d &np) {
 }
 
 bool pre_draw(Viewer& viewer) {
-    if (cleared) {
+    viewer.selected_data_index = 0;
+    
+    // clear points and lines
+    viewer.data().set_points(Eigen::MatrixXd::Zero(0,3), Eigen::MatrixXd::Zero(0,3));
+    viewer.data().set_edges(Eigen::MatrixXd::Zero(0,3), Eigen::MatrixXi::Zero(0,3), Eigen::MatrixXd::Zero(0,3));
+    // add origin
+    viewer.data().add_points(Eigen::RowVector3d(0,0,0), Eigen::RowVector3d(0,1,0));
+
+    // add com
+    update_com();
+    viewer.data().add_points(com, Eigen::RowVector3d(0,0,1));
+    RowVector3d com_proj = com;
+    com_proj[1] = 0;
+    viewer.data().add_points(com_proj, Eigen::RowVector3d(0,0,1));
+
+    if (gravity_is_set) {
+        Eigen::RowVector3d temp = com + 100 * gravity;
+        viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
+        viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
+    }
+
+    if (cleared && false) {
         cleared = false;
 
         viewer.data().add_points(Eigen::RowVector3d(0,0,0), Eigen::RowVector3d(0,1,0));
@@ -121,21 +143,14 @@ bool pre_draw(Viewer& viewer) {
         // 
         update_com();
         viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
-
-
-    	if (gravity_is_set) {
-                Eigen::RowVector3d temp = com + 100 * gravity;
-                viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
-                viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
-    	}
-
-
     }
+
 
     return false;
 }
 
 void clear(Viewer &viewer) {
+    return;
     viewer.selected_data_index = 0;
     viewer.data().clear();
     viewer.selected_data_index = 1;
@@ -143,24 +158,27 @@ void clear(Viewer &viewer) {
     cleared = true;
 }
 
-//void update_viewer(Viewer& viewer){
-//    viewer.data().clear();
-//    viewer.data().set_mesh(V, F);
-//    viewer.data().set_face_based(true);
-//    if(com_is_set) {
-//        viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
-//    }
-//    if(gravity_is_set) {
-//        Eigen::RowVector3d temp = com + 100 * gravity;
-//        viewer.data().add_points(temp, Eigen::RowVector3d(1,0,0));
-//        viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
-//    }
-//    //if(balance_point_is_set) {
-//    //    viewer.data().add_points(balance_point, Eigen::RowVector3d(0,1,0));
-//    //}
-//}
+void setVoxel(Viewer &viewer, const MatrixXd &v, const MatrixXi &f) {
+    voxel_V = v; voxel_F = f;
+    viewer.selected_data_index = 1;
+    viewer.data().clear();
+    viewer.data().set_mesh(v, f);
+}
 
-void set_plane() {
+void setPlane(Viewer &viewer) {
+    viewer.selected_data_index = 2;
+    viewer.data().clear();
+    viewer.data().set_mesh(planeV, planeF);
+    viewer.data().set_normals(planeFN);
+}
+
+void setEmpty(Viewer &viewer, const MatrixXd &, const MatrixXi &f) {
+
+}
+
+
+
+void create_plane() {
     // Find the bounding box
     Eigen::Vector3d m = V_base.colwise().minCoeff();
     Eigen::Vector3d M = V_base.colwise().maxCoeff();
@@ -179,16 +197,20 @@ void set_plane() {
 
     planeFN.row(0) = Eigen::RowVector3d(0,1,0);
     planeFN.row(1) = Eigen::RowVector3d(0,1,0);
+}
 
-    has_plane = true;
+
+void setMesh(Viewer &viewer, const MatrixXd &v, const MatrixXi &f) {
+    V = v; F = f;
+    viewer.selected_data_index = 0;
+    viewer.data().clear();
+    viewer.data().set_mesh(v, f);
+
+    create_plane();
+    setPlane(viewer);
 }
 
 bool mouse_down(Viewer& viewer, int button, int modifier) {
-    mouse_down_x = viewer.current_mouse_x;
-    mouse_down_y = viewer.core.viewport(3) - viewer.current_mouse_y;
-
-
-
     if (set_balance_spot) {
         Eigen::Vector3f baryC;
         int fid;
@@ -203,39 +225,12 @@ bool mouse_down(Viewer& viewer, int button, int modifier) {
             Eigen::RowVector3d nn_c = V.row(F(fid,c));
             V.rowwise() -= nn_c;
             V_base.rowwise() -= nn_c;
-            clear(viewer);
+            setMesh(viewer, V, F);
             set_balance_spot = false;
-            set_plane();
         }
     }
 
     if (set_gravity) return true;
-
-    return false;
-}
-
-bool mouse_up(Viewer& viewer, int button, int modifier) {
-    double x = viewer.current_mouse_x;
-    double y = viewer.core.viewport(3) - viewer.current_mouse_y;
-
-    if (DEBUG) {
-        cout << "mouse up x: " << x << endl;
-        cout << "mouse up y: " << y << endl;
-    }
-
-    //if (set_gravity) {
-    //    gravity_from = {mouse_down_x, mouse_down_y, 0};
-    //    gravity_to = {x, y, 0};
-    //    gravity = (gravity_to - gravity_from).normalized();
-    //    Eigen::MatrixXd tmp; tmp.resize(2,3);
-    //    tmp.row(0) = V_box.row(0);
-    //    double tmp_length = (V_box.row(0) - V_box.row(1)).norm() / 5;
-    //    tmp.row(1) = V_box.row(0) + gravity.transpose() * tmp_length;
-    //    viewer.data().add_points(tmp, Eigen::RowVector3d(1,0,0));
-    //    viewer.data().add_edges(tmp.row(0), tmp.row(1),Eigen::RowVector3d(1,0,0));
-    //    set_gravity = false;
-    //    return true;
-    //}
 
     return false;
 }
@@ -270,9 +265,9 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         MatrixXi J; 
         igl::copyleft::cgal::intersect_with_half_space(V, F_base, p,  n, VC, FC, J);
 
-        clear(viewer);
         V = VC;
         F = FC;
+        setMesh(viewer, V, F);
 
         // calculate support polygon
         // Inputs:
@@ -291,7 +286,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
 
         MatrixXd floorC; floorC.resize(floorF.rows(), 3);
         for (int k = 0; k < floorF.rows(); k++) {
-            floorC.row(k) = RowVector3d(1, 0,0);    
+            floorC.row(k) = RowVector3d(1, 0, 0);    
         }
         viewer.data().set_colors(floorC);
 
@@ -302,44 +297,10 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
     } else if (key == '3') {
         Voxalization voxal(V, F, resolution, voxel_max_depth, eps_to_boundary);
         // just display voxelization
-        voxal.triangulate(new_V, new_F);
-        igl::per_face_normals(new_V, new_F, new_N);
-        clear(viewer);
-        cleared =  false;
-        viewer.data().set_mesh(new_V, new_F);
-        viewer.data().set_normals(new_N);
-
-        viewer.append_mesh();
-        viewer.data().set_mesh(V, F);
-
-        VectorXd s10; 
-        props(new_V, new_F, 0.1,  s10);
-        cout << "s10:" << endl;
-        cout << s10 << endl;    
-        cout << "com1: " << endl;
-        cout << getCoM(s10) << endl;
-
-
-
-        // now calculate center of mass by adding all together
-        //vector<MatrixXd> faceNormals;
-        //vector<MatrixXi> boxes;
-        //voxal.triangulate_with_vectors(new_V, faceNormals, boxes);
-
-
-//        Eigen::VectorXd s10_all; s10_all.resize(10); s10_all.setZero();
-
-  //      for (int i = 0; i < boxes.size(); i++) {
-    //        VectorXd s10; 
-     //       props(new_V, boxes[i], faceNormals[i], 0.1,  s10);    
-      //      s10_all += s10;
-       // }
+        MatrixXd newV; MatrixXi newF;
+        voxal.triangulate(newV, newF);
         
-
-        RowVector3d vCom = getCoM(s10).transpose();
-        viewer.data().add_points(vCom, Eigen::RowVector3d(0, 0, 1));
-        cout << "com2: " << endl;
-        cout << vCom << endl;
+        setVoxel(viewer, newV, newF); 
 
     } else if (key == '4') { // optimize! :)
         // 1. calculate mass properties over whole mesh
@@ -355,12 +316,13 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
 
         // get interior mesh
         vector<MatrixXi> boxes; vector<VectorXd> b_s10;
-        voxal.get_interior_mesh(new_V, boxes);
+        MatrixXd newV;
+        voxal.get_interior_mesh(newV, boxes);
 
         // calculate mass proprties of each box of the interior mesh
         for (int i = 0; i < boxes.size(); i++) {
             VectorXd s10; 
-            props(new_V, boxes[i], 0.1,  s10);    
+            props(newV, boxes[i], 0.1,  s10);    
             b_s10.push_back(s10);
         }
 
@@ -376,28 +338,17 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
             }
         }
 
-        voxal.triangulate(new_V, new_F);
+        MatrixXi newF;
+        voxal.triangulate(newV, newF);
+        setVoxel(viewer, newV, newF);
 
         // triangulate mesh
-        MatrixXd emptyV;
-        MatrixXi emptyF;
         voxal.triangulate_empty(emptyV, emptyF);
-        igl::writeOFF("empty_mesh.off", emptyV, emptyF);
-        clear(viewer);
-        cleared =  false;
-        viewer.data().set_mesh(new_V, new_F);
+        update_com();
 
-        viewer.append_mesh();
-        viewer.data().set_mesh(V, F);
-
+        igl::writeOFF("empty_mesh.off", emptyV, emptyF);    
         voxal.writeCAD(V, F);
 
-        VectorXd s10; 
-        props(emptyV, emptyF, 0.1,  s10);
-        RowVector3d vCom = getCoM(s10all - s10).transpose();
-        viewer.data().add_points(vCom, Eigen::RowVector3d(0, 0, 1));
-        cout << "com: " << endl;
-        cout << vCom << endl;
     } else if (key == '9') {
         igl::writeOFF("saved_file.off", V, F);
     } 
@@ -480,9 +431,21 @@ int main(int argc, char *argv[]) {
         
     }
 
-    // SIMPLE BOX
-        
-    //
+
+    // init viewer
+    Viewer viewer;
+
+    // add meshs 
+    viewer.data().set_mesh(V, F);
+    viewer.append_mesh();
+    viewer.data().set_mesh(voxel_V, voxel_F);
+    viewer.append_mesh();
+    viewer.data().set_mesh(planeV, planeF);
+    // add origin 
+
+
+    viewer.core.align_camera_center(V,F);
+    viewer.data().set_face_based(true);
 
 
     igl::per_face_normals(V,F, FN);
@@ -491,12 +454,12 @@ int main(int argc, char *argv[]) {
     FN_base = FN;
     F_base = F;
 
+    create_plane();
+    setPlane(viewer);
+
+
     V_box.resize(8,3); V_box.setZero();     
     setBoudingBox();
-
-
-    // init viewer
-    Viewer viewer;
 
     // zero com
     com.resize(3); com.setZero();
@@ -523,7 +486,6 @@ int main(int argc, char *argv[]) {
         if (ImGui::IsItemActive()) {
             V  = V_base.rowwise() - RowVector3d(0, y_move_balance_spot, 0);
             clear(viewer);
-            set_plane();
         }
 
         ImGui::InputInt("Resolution", &resolution);
@@ -537,13 +499,12 @@ int main(int argc, char *argv[]) {
         if (ImGui::IsItemActive()) {
             update_gravity();
             clear(viewer);
-            set_plane();
-        }
+        };
+
         ImGui::SliderFloat("Gravity angle in xz-plane", &gra_xz, -180.f, 180.f);
         if (ImGui::IsItemActive()) {
             update_gravity();
             clear(viewer);
-            set_plane();
         }
         if (ImGui::Button("Update gravity", ImVec2(-1,0))){
             update_gravity();
@@ -563,7 +524,6 @@ int main(int argc, char *argv[]) {
 		ImGui::InputFloat("move balancing point in z direction", &move_bp_z);
         
 		if (ImGui::Button("move balancing point", ImVec2(-1,0))) {
-
 			V = V.rowwise() - Eigen::RowVector3d(move_bp_x, move_bp_y, move_bp_z);
          
             //update_viewer(viewer);
@@ -584,7 +544,6 @@ int main(int argc, char *argv[]) {
 
     
     viewer.callback_mouse_down = &mouse_down;
-    viewer.callback_mouse_up = &mouse_up;
     viewer.callback_key_down = &callback_key_down;
     viewer.callback_pre_draw = &pre_draw;
 
@@ -593,7 +552,7 @@ int main(int argc, char *argv[]) {
     //viewer.data().set_mesh(V, F);
     //viewer.data().set_face_based(true);
 
-    viewer.append_mesh(); // now we have 2 mesh
+    //viewer.append_mesh(); // now we have 2 mesh
     // mesh 0 = plane
     // mesh 1 = mesh
     viewer.launch();
