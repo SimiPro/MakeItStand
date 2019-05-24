@@ -121,31 +121,6 @@ bool pre_draw(Viewer& viewer) {
         viewer.data().add_edges(com, temp,Eigen::RowVector3d(1,0,0));
     }
 
-    if (cleared && false) {
-        cleared = false;
-
-        viewer.data().add_points(Eigen::RowVector3d(0,0,0), Eigen::RowVector3d(0,1,0));
-
-        if (has_plane) {    
-            viewer.selected_data_index = 0;
-            viewer.data().set_mesh(planeV, planeF);
-            viewer.data().set_normals(planeFN);
-        }
-
-        // set mesh
-        viewer.selected_data_index = 1;
-        viewer.data().set_mesh(V, F);
-        viewer.core.align_camera_center(V,F);
-
-        //viewer.data().compute_normals();
-        viewer.data().set_face_based(true);
-
-        // 
-        update_com();
-        viewer.data().add_points(com, Eigen::RowVector3d(0, 0, 1));
-    }
-
-
     return false;
 }
 
@@ -205,6 +180,7 @@ void setMesh(Viewer &viewer, const MatrixXd &v, const MatrixXi &f) {
     viewer.selected_data_index = 0;
     viewer.data().clear();
     viewer.data().set_mesh(v, f);
+    viewer.core.align_camera_center(v,f);
 
     create_plane();
     setPlane(viewer);
@@ -406,8 +382,9 @@ void align_gravity() {
     V = V_base * rot_mat.transpose();
     gravity = gravity * rot_mat.transpose();
 
+
     //translation
-    update_com();
+    //update_com();
    // V = V.rowwise() - com;
     //com = Eigen::RowVector3d(0, 0, 0);
     //V_base = V;
@@ -485,36 +462,32 @@ int main(int argc, char *argv[]) {
         ImGui::DragFloat("Move spot up/down", &y_move_balance_spot, 0.1);
         if (ImGui::IsItemActive()) {
             V  = V_base.rowwise() - RowVector3d(0, y_move_balance_spot, 0);
-            clear(viewer);
+
         }
 
         ImGui::InputInt("Resolution", &resolution);
         ImGui::InputInt("Octree depth", &voxel_max_depth); 
         ImGui::InputDouble("Eps voxel vs boundary", &eps_to_boundary); 
 
-
-
-	//gravity
+    	//gravity
         ImGui::SliderFloat("Gravity angle in xy-plane", &gra_xy, -180.f, 180.f);
         if (ImGui::IsItemActive()) {
             update_gravity();
-            clear(viewer);
+            setMesh(viewer, V, F);
         };
 
         ImGui::SliderFloat("Gravity angle in xz-plane", &gra_xz, -180.f, 180.f);
         if (ImGui::IsItemActive()) {
             update_gravity();
-            clear(viewer);
+            setMesh(viewer, V, F);
         }
         if (ImGui::Button("Update gravity", ImVec2(-1,0))){
             update_gravity();
-            //update_viewer(viewer);
-            clear(viewer);
+            setMesh(viewer, V, F);
         }
         if (ImGui::Button("rotate model to align gravity", ImVec2(-1,0))) {
             align_gravity();
-            //update_viewer(viewer);
-            clear(viewer);
+            setMesh(viewer, V, F);            
         }
 
 		ImGui::InputFloat("move balancing point in x direction", &move_bp_x);
@@ -524,20 +497,12 @@ int main(int argc, char *argv[]) {
 		ImGui::InputFloat("move balancing point in z direction", &move_bp_z);
         
 		if (ImGui::Button("move balancing point", ImVec2(-1,0))) {
-			V = V.rowwise() - Eigen::RowVector3d(move_bp_x, move_bp_y, move_bp_z);
-         
-            //update_viewer(viewer);
-            clear(viewer);
+			V = V.rowwise() - Eigen::RowVector3d(move_bp_x, move_bp_y, move_bp_z);         
+            setMesh(viewer, V, F);
         }
 
 
         ImGui::SliderAngle("Rotate around balancing spot", &rotate_balancing_spot);
-
-        //ImGui::Checkbox("Set Gravity", &set_gravity);
-        //ImGui::InputDouble("Gravity x", &gravity[0], 0., 0);
-        //ImGui::InputDouble("Gravity y", &gravity[1], 0., 0);
-        //ImGui::InputDouble("Gravity z", &gravity[2], 0., 0);
-
 
         ImGui::End();
     };
