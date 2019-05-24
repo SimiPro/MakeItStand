@@ -65,7 +65,6 @@ double eps_to_boundary = 0.1;
 
 bool set_gravity = false;
 
-bool cleared = true;
 
 bool has_plane = false;
 bool set_balance_spot = false;
@@ -122,15 +121,6 @@ bool pre_draw(Viewer& viewer) {
     }
 
     return false;
-}
-
-void clear(Viewer &viewer) {
-    return;
-    viewer.selected_data_index = 0;
-    viewer.data().clear();
-    viewer.selected_data_index = 1;
-    viewer.data().clear();
-    cleared = true;
 }
 
 void setVoxel(Viewer &viewer, const MatrixXd &v, const MatrixXi &f) {
@@ -230,9 +220,7 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         cout << "our com: " << endl;
         cout << com << endl;
 
-    //std::cout << "Done" << std::endl;
 
-        clear(viewer);
     } else if (key == '2') {
         Vector3d p(0,0,0);
         Vector3d n(0,-1,0);
@@ -277,6 +265,9 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {
         voxal.triangulate(newV, newF);
         
         setVoxel(viewer, newV, newF); 
+
+        emptyV.resize(0,3);
+        emptyF.resize(0,3);
 
     } else if (key == '4') { // optimize! :)
         // 1. calculate mass properties over whole mesh
@@ -373,21 +364,11 @@ void align_gravity() {
     //rotation
     Eigen::Matrix3d rot_mat;
     Eigen::Vector3d y(0, -1, 0);
-    //double angle = std::acos(y.dot(gra));
-    //Eigen::Vector3d axis = y.cross(gra);
-    //Eigen::AngleAxisd rot(-angle, axis);
-    //rot_mat = rot.toRotationMatrix();
+
     Eigen::Quaterniond quat = Eigen::Quaterniond().setFromTwoVectors(gravity, y);
     rot_mat = quat.toRotationMatrix();
     V = V_base * rot_mat.transpose();
     gravity = gravity * rot_mat.transpose();
-
-
-    //translation
-    //update_com();
-   // V = V.rowwise() - com;
-    //com = Eigen::RowVector3d(0, 0, 0);
-    //V_base = V;
 }
 
 int main(int argc, char *argv[]) {
@@ -462,7 +443,7 @@ int main(int argc, char *argv[]) {
         ImGui::DragFloat("Move spot up/down", &y_move_balance_spot, 0.1);
         if (ImGui::IsItemActive()) {
             V  = V_base.rowwise() - RowVector3d(0, y_move_balance_spot, 0);
-
+            setMesh(viewer, V, F);
         }
 
         ImGui::InputInt("Resolution", &resolution);
@@ -512,15 +493,7 @@ int main(int argc, char *argv[]) {
     viewer.callback_key_down = &callback_key_down;
     viewer.callback_pre_draw = &pre_draw;
 
-    // Plot the mesh
 
-    //viewer.data().set_mesh(V, F);
-    //viewer.data().set_face_based(true);
-
-    //viewer.append_mesh(); // now we have 2 mesh
-    // mesh 0 = plane
-    // mesh 1 = mesh
     viewer.launch();
 
-    clear(viewer);
 }
