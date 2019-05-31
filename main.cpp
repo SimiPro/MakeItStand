@@ -369,6 +369,10 @@ void align_gravity() {
     rot_mat = quat.toRotationMatrix();
     V = V_base * rot_mat.transpose();
     gravity = gravity * rot_mat.transpose();
+
+	V_base = V;
+
+
 }
 
 int main(int argc, char *argv[]) {
@@ -440,17 +444,8 @@ int main(int argc, char *argv[]) {
 
 
         ImGui::Checkbox("Set Balance Spot", &set_balance_spot);
-        ImGui::DragFloat("Move spot up/down", &y_move_balance_spot, 0.1);
-        if (ImGui::IsItemActive()) {
-            V  = V_base.rowwise() - RowVector3d(0, y_move_balance_spot, 0);
-            setMesh(viewer, V, F);
-        }
 
-        ImGui::InputInt("Resolution", &resolution);
-        ImGui::InputInt("Octree depth", &voxel_max_depth); 
-        ImGui::InputDouble("Eps voxel vs boundary", &eps_to_boundary); 
-
-    	//gravity
+        //gravity
         ImGui::SliderFloat("Gravity angle in xy-plane", &gra_xy, -180.f, 180.f);
         if (ImGui::IsItemActive()) {
             update_gravity();
@@ -462,14 +457,28 @@ int main(int argc, char *argv[]) {
             update_gravity();
             setMesh(viewer, V, F);
         }
+		/*
         if (ImGui::Button("Update gravity", ImVec2(-1,0))){
             update_gravity();
             setMesh(viewer, V, F);
         }
+		*/
         if (ImGui::Button("rotate model to align gravity", ImVec2(-1,0))) {
             align_gravity();
             setMesh(viewer, V, F);            
         }
+
+        //ImGui::DragFloat("Move spot up/down", &y_move_balance_spot, 0.1);
+        ImGui::DragFloat("Move Contact Surface up/down", &y_move_balance_spot, 0.1);
+        if (ImGui::IsItemActive()) {
+            V  = V_base.rowwise() - RowVector3d(0, y_move_balance_spot, 0);
+            setMesh(viewer, V, F);
+        }
+
+        ImGui::InputInt("Resolution", &resolution);
+        ImGui::InputInt("Octree depth", &voxel_max_depth); 
+        ImGui::InputDouble("Eps voxel vs boundary", &eps_to_boundary); 
+
 
 		ImGui::InputFloat("move balancing point in x direction", &move_bp_x);
         
@@ -481,6 +490,7 @@ int main(int argc, char *argv[]) {
 			V = V.rowwise() - Eigen::RowVector3d(move_bp_x, move_bp_y, move_bp_z);         
             setMesh(viewer, V, F);
         }
+		
 
 
         ImGui::SliderAngle("Rotate around balancing spot", &rotate_balancing_spot);
