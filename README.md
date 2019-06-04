@@ -1,5 +1,7 @@
 # Make it stand
 
+<a href="https://www.youtube.com/watch?v=xzZjtbtjyEE" target="_blank"><img src="http://img.youtube.com/vi/xzZjtbtjyEE/0.jpg" alt="Example video" width="240" height="180" border="10" /></a>
+
 ## Compile
 
 Compile this project using the standard cmake routine:
